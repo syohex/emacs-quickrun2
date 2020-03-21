@@ -107,24 +107,24 @@
         `(put (quote ,name) 'safe-local-variable (quote ,safep)))))
 
 (quickrun2--defvar quickrun2-option-cmd-alist
-                  nil listp
-                  "Specify command alist directly as file local variable")
+                   nil listp
+                   "Specify command alist directly as file local variable")
 
 (quickrun2--defvar quickrun2-option-command
-                  nil stringp
-                  "Specify command directly as file local variable")
+                   nil stringp
+                   "Specify command directly as file local variable")
 
 (quickrun2--defvar quickrun2-option-cmdkey
-                  nil stringp
-                  "Specify language key directly as file local variable")
+                   nil stringp
+                   "Specify language key directly as file local variable")
 
 (quickrun2--defvar quickrun2-option-cmdopt
-                  nil stringp
-                  "Specify command option directly as file local variable")
+                   nil stringp
+                   "Specify command option directly as file local variable")
 
 (quickrun2--defvar quickrun2-option-args
-                  nil stringp
-                  "Specify command argument directly as file local variable")
+                   nil stringp
+                   "Specify command argument directly as file local variable")
 
 (defun quickrun2--outputter-p (_x)
   (lambda (x)
@@ -132,40 +132,26 @@
         (quickrun2--outputter-multi-p x))))
 
 (quickrun2--defvar quickrun2-option-outputter
-                  nil quickrun2--outputter-p
-                  "Specify format function output buffer as file local variable")
+                   nil quickrun2--outputter-p
+                   "Specify format function output buffer as file local variable")
 
 (quickrun2--defvar quickrun2-option-shebang
-                  t booleanp
-                  "Select using command from schebang as file local variable")
+                   t booleanp
+                   "Select using command from schebang as file local variable")
 
 (quickrun2--defvar quickrun2-option-timeout-seconds
-                  nil integerp
-                  "Timeout seconds as file local variable")
+                   nil integerp
+                   "Timeout seconds as file local variable")
 
 (quickrun2--defvar quickrun2-option-default-directory
-                  nil file-directory-p
-                  "Default directory where command is executed")
+                   nil file-directory-p
+                   "Default directory where command is executed")
 
 ;; hooks
 (defvar quickrun2-after-run-hook nil
   "Run hook after execute quickrun2")
 
 (defvar quickrun2--temporary-file nil)
-
-;; Language specific functions
-
-(defun quickrun2--gnuplot-execute ()
-  (setq quickrun2--temporary-file (concat (make-temp-name "quickrun2-gnuplot") ".png"))
-  (let ((terminal-option "set terminal png")
-        (output-option (format "set output \"%s\"" quickrun2--temporary-file)))
-    (push quickrun2--temporary-file quickrun2--remove-files)
-    (concat "%c -e '" terminal-option "' -e '" output-option "' %s")))
-
-(defun quickrun2--gnuplot-outputter ()
-  (clear-image-cache)
-  (insert-file-contents quickrun2--temporary-file)
-  (image-mode))
 
 ;;
 ;; language command parameters
@@ -184,13 +170,6 @@
                   (:remove  . ("%e"))
                   (:description . "Compile C file with llvm/clang and execute")))
 
-    ("c/cl" . ((:command . "cl")
-               (:exec    . ("%c /Tc %o %s /nologo /Fo%n.obj /Fe%n.exe"
-                            "%n %a"))
-               (:compile-only . "%c %o %s /Wall /nologo /Fo%n.obj /Fe%n.exe")
-               (:remove  . ("%n.obj" "%n.exe"))
-               (:description . "Compile C file with VC++/cl and execute")))
-
     ("c++/g++" . ((:command . "g++")
                   (:exec    . ("%c -x c++ %o -o %e %s" "%e %a"))
                   (:compile-only . "%c -Wall -Werror %o -o %e %s")
@@ -203,244 +182,25 @@
                       (:remove  . ("%e"))
                       (:description . "Compile C++ file with llvm/clang++ and execute")))
 
-    ("c++/cl" . ((:command . "cl")
-                 (:exec    . ("%c /Tp %o %s /nologo /Fo%n.obj /Fe%n.exe"
-                              "%n %a"))
-                 (:compile-only . "%c %o %s /Wall /nologo /Fo%n.obj /Fe%n.exe")
-                 (:remove  . ("%n.obj" "%n.exe"))
-                 (:description . "Compile C++ file with VC/cl and execute")))
-
-    ("objc" . ((:command . "gcc")
-               (:exec    . ((lambda ()
-                              (if (eq system-type 'darwin)
-                                  "%c -x objective-c %o -o %e %s -framework foundation"
-                                "%c -x objective-c %o -o %e %s -lobjc"))
-                            "%e %a"))
-               (:remove  . ("%e"))
-               (:description . "Compile Objective-C file with gcc and execute")))
-
-    ("c#/dotnet" . ((:command . "dotnet run")
-                    (:remove  . ("bin" "obj"))
-                    (:compile-only . "dotnet build")
-                    (:description . "Run .NET project")))
-
-    ("c#/mono" . ((:command . "mono")
-                  (:exec    . ("mcs %o %s" "%c %n.exe %a"))
-                  (:remove  . ("%n.exe"))
-                  (:description . "Compile C# and execute with mono(mcs)")))
-
-    ("d" . ((:command . "dmd")
-            (:exec    . ("%c %o -of%e %s" "%e %a"))
-            (:remove  . ("%e" "%n.o"))
-            (:description . "Compile D language file and execute")))
-
-    ("fortran/gfortran" . ((:command . "gfortran")
-                           (:exec    . ("%c %o -o %e %s" "%e %a"))
-                           (:remove  . ("%e"))
-                           (:description . "Compile Fortran language with gfortran")))
-
-    ("java" . ((:command . "java")
-               (:compile-only . "javac -Werror %o %s")
-               (:exec    . ("javac %o %s" "%c %N %a"))
-               (:remove  . ("%n.class"))
-               (:tempfile . nil)
-               (:description . "Compile Java file and execute")))
-
     ("perl" . ((:command . "perl") (:compile-only . "%c -wc %s")
                (:description . "Run Perl script")))
-    ("perl6" . ((:command . "perl6") (:compile-only . "%c -c %s")
-                (:description . "Run Perl6 script")))
-    ("ruby/ruby" . ((:command . "ruby") (:compile-only . "%c -wc %s")
-                    (:description . "Run Ruby script")))
-    ("ruby/mruby" . ((:command . "mruby")
-                     (:exec . ("mrbc %s" "mruby -b %N.mrb"))
-                     (:compile-only . "mrbc -c %s")
-                     (:remove  . ("%n.mrb"))
-                     (:description . "Run mruby script")))
+    ("ruby" . ((:command . "ruby") (:compile-only . "%c -wc %s")
+               (:description . "Run Ruby script")))
     ("python" . ((:command . "python") (:compile-only . "pyflakes %s")
                  (:description . "Run Python script")))
-    ("php" . ((:command . "php") (:compile-only . "%c -l %s")
-              (:description . "Run PHP script")))
 
-    ("emacs" . ((:command . "emacs")
-                (:exec    . "%c -q --no-site-file --batch -l %s")
-                (:description . "Run Elisp as script file")))
-    ("lisp/clisp" . ((:command . "clisp")
-                     (:description . "Run Lisp file with clisp")))
-    ("lisp/sbcl" . ((:command . "sbcl")
-                    (:exec . "%c --script %s %a")
-                    (:description . "Run Lisp file with sbcl")))
-    ("lisp/ccl" . ((:command . "ccl")
-                   (:exec . "%c --load %s --eval '(quit)'")
-                   (:description . "Run Lisp file with ccl")))
-    ("scheme/gosh" . ((:command . "gosh")
-                      (:description . "Run Scheme file with gosh(Gauche)")))
-    ("racket" . ((:command . "racket")
-                 (:exec . "%c --require-script %s")
-                 (:description . "Run racket script")))
+    ("javascript" . ((:command . "node")
+                     (:description . "Run Javascript file with node.js")))
 
-    ("clojure/jark"        . ((:command . "jark")
-                              (:description . "Run Clojure file with jark")))
-    ("clojure/clj-env-dir" . ((:command . "clj-env-dir")
-                              (:description . "Run Clojure file with clj-env-dir")))
-
-    ("javascript/node" . ((:command . "node")
-                          (:description . "Run Javascript file with node.js")))
-    ("javascript/v8" . ((:command . "v8")
-                        (:description . "Run Javascript file with v8")))
-    ("javascript/js" . ((:command . "js")
-                        (:description . "Run Javascript file with js(Rhino)")))
-    ("javascript/jrunscript" . ((:command . "jrunscript")
-                                (:description . "Run Javascript file with jrunscript")))
-    ("javascript/phantomjs" . ((:command . "phantomjs")
-                               (:description . "Run Javascript file with phantomjs")))
-    ("javascript/cscript" . ((:command . "cscript")
-                             (:exec . "%c //e:jscript %o %s %a")
-                             (:cmdopt . "//Nologo")
-                             (:description . "Run Javascript file with cscript")))
-
-    ("coffee" . ((:command . "coffee")
-                 (:compile-only . "coffee --print %s")
-                 (:compile-conf . ((:compilation-mode . nil) (:mode . js-mode)))
-                 (:description . "Run Coffee script")))
-
-    ("jsx" . ((:command . "jsx")
-              (:exec . "%c --run %o %s %a")
-              (:compile-only . "%c %o %s %s")
-              (:compile-conf . ((:compilation-mode . nil) (:mode . js-mode)))
-              (:description . "Run JSX script")))
-
-    ("typescript" . ((:command . "tsc")
-                     (:exec . ("%c --target es5 --module commonjs %o %s %a" "node %n.js"))
-                     (:compile-only . "%c %o %s %s")
-                     (:compile-conf . ((:compilation-mode . nil) (:mode . js-mode)))
-                     (:remove  . ("%n.js"))
-                     (:description . "Run TypeScript script")))
-
-    ("markdown/Markdown.pl" . ((:command . "Markdown.pl")
-                               (:description . "Convert Markdown to HTML with Markdown.pl")))
-    ("markdown/bluecloth"   . ((:command . "bluecloth")
-                               (:cmdopt  . "-f")
-                               (:description . "Convert Markdown to HTML with bluecloth")))
-    ("markdown/kramdown"    . ((:command . "kramdown")
-                               (:description . "Convert Markdown to HTML with kramdown")))
-    ("markdown/pandoc"      . ((:command . "pandoc")
-                               (:exec . "%c --from=markdown --to=html %o %s %a")
-                               (:description . "Convert Markdown to HTML with pandoc")))
-    ("markdown/redcarpet"   . ((:command . "redcarpet")
-                               (:description . "Convert Markdown to HTML with redcarpet")))
-
-    ("haskell" . ((:command . "runghc")
-                  (:description . "Run Haskell file with runghc(GHC)")))
-
-    ("go/go"  .  ((:command . "go")
-                  (:exec    . ((lambda ()
-                                 (if (string-match-p "_test\\.go\\'" (buffer-name))
-                                     "%c test %o"
-                                   "%c run %o %s %a"))))
-                  (:compile-only . "%c build -o /dev/null %s %o %a")
-                  (:tempfile . nil)
-                  (:description . "Compile go file and execute with 'go'")))
-    ("go/gccgo"  .  ((:command . "gccgo")
-                     (:exec    . ("%c -static-libgcc %o -o %e %s"
-                                  "%e %a"))
-                     (:remove  . ("%e"))
-                     (:description . "Compile Go file with 'gccgo'")))
-
-    ("io" . ((:command . "io")
-             (:description . "Run IO Language script")))
-    ("lua" . ((:command . "lua")
-              (:description . "Run Lua script")))
-    ("groovy" . ((:command . "groovy")
-                 (:description . "Run Groovy")))
-    ("scala" . ((:command . "scala")
-                (:cmdopt . "-Dfile.encoding=UTF-8")
-                (:description . "Run Scala file with scala command")))
-
-    ("haml" . ((:command . "haml")
-               (:exec    . "%c %o %s")
-               (:description . "Convert HAML to HTML")))
-    ("sass" . ((:command . "sass")
-               (:exec    . "%c %o --no-cache %s")
-               (:description . "Convert SASS to CSS")))
-    ("less" . ((:command . "lessc")
-               (:description . "Convert LESS to CSS")))
-
-    ("erlang" . ((:command . "escript")
-                 (:description . "Run Erlang file with escript")))
-    ("ocaml" . ((:command . "ocamlc")
-                (:exec    . ("%c %o -o %e %s"
-                             "%e %a"))
-                (:remove  . ("%e" "%n.cmi" "%n.cmo"))
-                (:description . "Compile Ocaml file with ocamlc and execute")))
-
-    ("fsharp" . ((:command . "fsharpc")
-                 (:exec . ("%c %o --nologo -o %n.exe %s" "%n.exe %a"))
-                 (:remove . ("%n.exe"))
-                 (:description . "Compile F# file with fsharpc and execute")))
-
-    ("shellscript" . ((:command . (lambda () sh-shell))
-                      (:description . "Run Shellscript file")))
-    ("awk" . ((:command . "awk")
-              (:exec    . "%c %o -f %s %a")
-              (:description . "Run AWK script")))
-
-    ("rust" . ((:command . "rustc")
-               (:exec . ("%c %o -o %e %s" "%e %a"))
-               (:compile-only . "%c %o -o %e %s")
-               (:remove . ("%e"))
-               (:description . "Compile rust and execute")))
-
-    ("dart/checked" . ((:command . "dart")
-                       (:cmdopt  . "--enable-type-checks")
-                       (:description . "Run dart with '--enable-type-checks' option")))
-    ("dart/production" . ((:command . "dart")
-                          (:description . "Run dart as without '--enable-type-checks' option")))
-
-    ("elixir" . ((:command . "elixir")
-                 (:description . "Run Elixir script")))
-
-    ("tcl" . ((:command . "tclsh")
-              (:description . "Run Tcl script")))
-
-    ("swift/swift" . ((:command . "swift")
-                      (:exec    . ("%c %o %s %a"))
-                      (:description . "Compile swift and execute")))
-
-    ("swift/xcrun" . ((:command . "xcrun")
-                      (:exec    . ("%c swift %o %s %a"))
-                      (:description . "Compile swift and execute with xcrun")))
-
-    ("ats" . ((:command . "patscc")
-              (:exec    . ("%c -DATS_MEMALLOC_LIBC %o -o %e %s" "%e %a"))
-              (:compile-only . "patsopt -o %n_dats.c --dynamic %s")
-              (:remove  . ("%e" "%n_dats.c"))
-              (:description . "Compile ATS2 and execute")))
-    ("r" . ((:command . "Rscript")
-            (:exec "Rscript --vanilla %s")
-            (:description . "Run an R script")))
-
-    ("nim" . ((:command . "nim")
-              (:exec . "%c compile --run --verbosity:0 %s")
-              (:remove . ("nimcache" "%n"))
-              (:tempfile . nil)
-              (:description . "Run nim script")))
-
-    ("nimscript" . ((:command . "nim")
-                    (:exec . "%c e --verbosity:0 %s")
-                    (:tempfile . nil)
-                    ;; Note that .nimle file also allows ‘.ini’ format, so
-                    ;; we can’t check by file extension.
-                    (:description . "Run NimScript (.nims or .nimble) file")))
-
-    ("fish" . ((:command . "fish")
-               (:description . "Run fish script")))
-
-    ("julia" . ((:command . "julia")
-                (:description . "Run julia script")))
-    ("gnuplot" . ((:command . "gnuplot")
-                  (:exec . (quickrun2--gnuplot-execute))
-                  (:outputter . quickrun2--gnuplot-outputter))))
+    ("go"  .  ((:command . "go")
+               (:exec    . ((lambda ()
+                              (if (string-match-p "_test\\.go\\'" (buffer-name))
+                                  "%c test %o"
+                                "%c run %o %s %a"))))
+               (:compile-only . "%c build -o /dev/null %s %o %a")
+               (:tempfile . nil)
+               (:description . "Compile go file and execute with 'go'")))
+    )
 
   "List of each programming languages information.
 Parameter form is (\"language\" . parameter-alist). parameter-alist has
@@ -465,102 +225,21 @@ if you set your own language configuration.
 (defvar quickrun2-file-alist
   '(("\\.c\\'" . "c")
     ("\\.\\(cpp\\|cxx\\|C\\|cc\\)\\'" . "c++")
-    ("\\.m\\'" . "objc")
-    ("\\.cs\\'" . "c#")
     ("\\.\\(pl\\|pm\\)\\'" . "perl")
-    ("\\.p[ml]?6\\'" . "perl6")
     ("\\.rb\\'" . "ruby")
     ("\\.py\\'" . "python")
-    ("\\.php\\'" . "php")
-    ("\\.\\(el\\|elisp\\)\\'" . "emacs")
-    ("\\.\\(lisp\\|lsp\\)\\'" . "lisp")
-    ("\\.\\(scm\\|scheme\\)\\'" . "scheme")
-    ("\\.rkt\\'" . "racket")
     ("\\.js\\'" . "javascript")
-    ("\\.clj\\'" . "clojure")
-    ("\\.erl\\'" . "erlang")
-    ("\\.ml\\'" . "ocaml")
-    ("\\.\\(fsx?\\|fsscript\\)\\'" . "fsharp")
-    ("\\.go\\'" . "go")
-    ("\\.io\\'" . "io")
-    ("\\.lua\\'" . "lua")
-    ("\\.hs\\'" . "haskell")
-    ("\\.java\\'" . "java")
-    ("\\.d\\'" . "d")
-    ("\\.\\(f\\|for\\|f90\\|f95\\)\\'" . "fortran")
-    ("\\.\\(md\\|markdown\\|mdown\\|mkdn\\)\\'" . "markdown")
-    ("\\.coffee\\'" . "coffee")
-    ("\\.jsx\\'" . "jsx")
-    ("\\.ts\\'" . "typescript")
-    ("\\.scala\\'" . "scala")
-    ("\\.groovy\\'". "groovy")
-    ("\\.haml\\'" . "haml")
-    ("\\.sass\\'" . "sass")
-    ("\\.less\\'" . "less")
-    ("\\.\\(sh\\|bash\\|zsh\\|csh\\|csh\\)\\'" . "shellscript")
-    ("\\.awk\\'" . "awk")
-    ("\\.rs\\'" . "rust")
-    ("\\.dart\\'" . "dart/checked")
-    ("\\.exs?\\'" . "elixir")
-    ("\\.tcl\\'" . "tcl")
-    ("\\.swift\\'" . "swift")
-    ("\\.dats\\'" . "ats")
-    ("\\.\\(r\\|R\\)\\'" . "r")
-    ("\\.nim\\'". "nim")
-    ("\\.fish\\'" . "fish")
-    ("\\.jl\\'" . "julia")
-    ("\\.\\(gpi\\|plt\\)\\'" . "gnuplot"))
+    ("\\.go\\'" . "go"))
   "Alist of (file-regexp . key)")
 
 (defvar quickrun2--major-mode-alist
   '((c-mode . "c")
     (c++-mode . "c++")
-    (objc-mode . "objc")
-    (csharp-mode . "c#")
     ((perl-mode cperl-mode) . "perl")
-    (perl6-mode . "perl6")
     (ruby-mode . "ruby")
     (python-mode . "python")
-    (php-mode . "php")
-    (emacs-lisp-mode . "emacs")
-    (lisp-mode . "lisp")
-    (scheme-mode . "scheme")
-    (racket-mode . "racket")
     ((javascript-mode js-mode js2-mode) . "javascript")
-    (clojure-mode . "clojure")
-    (erlang-mode . "erlang")
-    ((ocaml-mode tuareg-mode) . "ocaml")
-    (fsharp-mode . "fsharp")
-    (go-mode . "go")
-    (io-mode . "io")
-    (lua-mode . "lua")
-    (haskell-mode . "haskell")
-    (java-mode . "java")
-    (d-mode . "d")
-    (fortran-mode . "fortran")
-    (markdown-mode . "markdown")
-    (coffee-mode . "coffee")
-    (jsx-mode . "jsx")
-    (typescript-mode . "typescript")
-    (scala-mode . "scala")
-    (groove-mode . "groovy")
-    (haml-mode . "haml")
-    (sass-mode . "sass")
-    ((less-mode less-css-mode) . "less")
-    (sh-mode . "shellscript")
-    (awk-mode . "awk")
-    (rust-mode . "rust")
-    (dart-mode . "dart/checked")
-    (elixir-mode . "elixir")
-    (tcl-mode . "tcl")
-    (swift-mode . "swift")
-    (ats-mode . "ats")
-    (ess-mode . "r")
-    (nim-mode . "nim")
-    (nimscript-mode . "nimscript")
-    (fish-mode . "fish")
-    (julia-mode . "julia")
-    (gnuplot-mode . "gnuplot"))
+    (go-mode . "go"))
   "Alist of major-mode and langkey")
 
 (defun quickrun2--decide-file-type (filename)
@@ -610,10 +289,10 @@ if you set your own language configuration.
              (process-file-shell-command cmd nil t)
              (goto-char (point-min))
              (quickrun2--awhen (assoc-default :mode compile-conf)
-               (funcall it)
-               (quickrun2--pop-to-buffer
-                (current-buffer) (lambda () (read-only-mode +1)))
-               (read-only-mode +1)))
+                               (funcall it)
+                               (quickrun2--pop-to-buffer
+                                (current-buffer) (lambda () (read-only-mode +1)))
+                               (read-only-mode +1)))
            (quickrun2--remove-temp-files)))))
 
 (defun quickrun2--compilation-finish-func (_buffer _str)
@@ -728,11 +407,11 @@ if you set your own language configuration.
 (defun quickrun2--set-default-directory (cmd-key)
   (let ((cmd-info (quickrun2--command-info cmd-key)))
     (quickrun2--awhen (assoc-default :default-directory cmd-info)
-      (let ((formatted (file-name-as-directory it)))
-        (unless (file-directory-p formatted)
-          (throw 'quickrun2
-                 (format "'%s' is not existed directory" it)))
-        (setq quickrun2-option-default-directory formatted)))))
+                      (let ((formatted (file-name-as-directory it)))
+                        (unless (file-directory-p formatted)
+                          (throw 'quickrun2
+                                 (format "'%s' is not existed directory" it)))
+                        (setq quickrun2-option-default-directory formatted)))))
 
 (defsubst quickrun2--process-connection-type (cmd)
   ;; for suppressing 'carriage return'(^M)
@@ -1067,11 +746,7 @@ Place holders are beginning with '%' and replaced by:
 ;;
 
 (defconst quickrun2--support-languages
-  '("c" "c++" "objc" "c#" "perl" "perl6" "ruby" "python" "php" "emacs" "lisp" "scheme" "racket"
-    "javascript" "clojure" "erlang" "ocaml" "fsharp" "go" "io" "haskell" "java"
-    "d" "markdown" "coffee" "scala" "groovy" "sass" "less" "shellscript" "awk"
-    "lua" "rust" "dart" "elixir" "tcl" "jsx" "typescript" "fortran" "haml"
-    "swift" "ats" "r" "nim" "nimscript" "fish" "julia" "gnuplot")
+  '("c" "c++" "perl" "ruby" "python" "javascript" "go")
   "Programming languages and Markup languages supported as default
 by quickrun2.el. But you can register your own command for some languages")
 
@@ -1119,31 +794,19 @@ by quickrun2.el. But you can register your own command for some languages")
 
 (defun quickrun2--set-command-key (lang candidates)
   (quickrun2--awhen (quickrun2--find-executable candidates)
-    (puthash lang (format "%s/%s" lang it) quickrun2--command-key-table)))
+                    (puthash lang (format "%s/%s" lang it) quickrun2--command-key-table)))
 
 (defsubst quickrun2--c-compiler ()
-  (cond ((quickrun2--windows-p) '("gcc" "clang" "cl"))
-        ((eq system-type 'darwin) '("clang" "gcc"))
-        (t '("gcc" "clang"))))
+  (cond((eq system-type 'darwin) '("clang" "gcc"))
+       (t '("gcc" "clang"))))
 
 (defsubst quickrun2--c++-compiler ()
-  (cond ((quickrun2--windows-p) '("g++" "clang++" "cl"))
-        ((eq system-type 'darwin) '("clang++" "g++"))
-        (t '("g++" "clang++"))))
+  (cond((eq system-type 'darwin) '("clang++" "g++"))
+       (t '("g++" "clang++"))))
 
 (defconst quicklang/lang-candidates
   `(("c" . ,(quickrun2--c-compiler))
-    ("c++" . ,(quickrun2--c++-compiler))
-    ("c#" . ("dotnet" "mono"))
-    ("fortran" . ("gfortran"))
-    ("javascript" . ("node" "v8" "js" "jrunscript" "cscript"))
-    ("ruby" . ("ruby" "mruby"))
-    ("lisp" . ("clisp" "sbcl" "ccl"))
-    ("scheme" . ("gosh"))
-    ("swift" . ("xcrun" "swift"))
-    ("markdown" . ("Markdown.pl" "kramdown" "bluecloth" "redcarpet" "pandoc"))
-    ("clojure" . ("jark" "clj-env-dir"))
-    ("go" . ("go" "gccgo")))
+    ("c++" . ,(quickrun2--c++-compiler)))
   "Candidates of language which has some compilers or interpreters")
 
 (defun quickrun2--init-command-key-table ()
@@ -1185,12 +848,12 @@ by quickrun2.el. But you can register your own command for some languages")
   (let ((beg (or (plist-get plist :start) (point-min)))
         (end (or (plist-get plist :end) (point-max)))
         (quickrun2-option-cmd-alist (or quickrun2-option-cmd-alist
-                                       (plist-get plist :source)))
+                                        (plist-get plist :source)))
         (quickrun2-timeout-seconds (or quickrun2-option-timeout-seconds
-                                      quickrun2-timeout-seconds))
+                                       quickrun2-timeout-seconds))
         (quickrun2--compile-only-flag (or quickrun2--compile-only-flag
-                                         (and (consp current-prefix-arg)
-                                              (= (car current-prefix-arg) 16)))))
+                                          (and (consp current-prefix-arg)
+                                               (= (car current-prefix-arg) 16)))))
     (let ((has-error (catch 'quickrun2
                        (quickrun2--common beg end)
                        nil)))
@@ -1213,8 +876,8 @@ by quickrun2.el. But you can register your own command for some languages")
 (defun quickrun2--prompt ()
   (let* ((default (or quickrun2-option-cmdkey quickrun2--last-cmd-key))
          (prompt (format "Quickrun2 Lang%s: "(if default
-                                                (format "[Default: %s]" default)
-                                              ""))))
+                                                 (format "[Default: %s]" default)
+                                               ""))))
     (completing-read prompt quickrun2--language-alist nil nil nil nil default)))
 
 (defun quickrun2--region-command-common (start end)
@@ -1347,7 +1010,7 @@ by quickrun2.el. But you can register your own command for some languages")
                (let ((buf (get-buffer-create quickrun2--buffer-name)))
                  (quickrun2--setup-exec-buffer buf)
                  (quickrun2--exec (gethash :exec cmd-info-hash)
-                                 (file-name-nondirectory src) major-mode)
+                                  (file-name-nondirectory src) major-mode)
                  (when (quickrun2--buffer-popup-p)
                    (quickrun2--pop-to-buffer buf 'quickrun2--mode)))))))))
 

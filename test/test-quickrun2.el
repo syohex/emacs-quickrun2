@@ -33,8 +33,7 @@
     (sleep-for 1)
     (with-current-buffer "*quickrun2*"
       (let ((str (buffer-substring-no-properties (point-min) (point-max))))
-        (should (string= "Hello Python quickrun2.el\n" str))))
-    (sleep-for 1)))
+        (should (string= "Hello Python quickrun2.el\n" str))))))
 
 (ert-deftest quickrun2:add-command ()
   "Add new command"
