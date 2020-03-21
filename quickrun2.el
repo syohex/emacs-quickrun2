@@ -39,10 +39,6 @@
 
 (require 'cl-lib)
 (require 'ansi-color)
-(require 'em-banner)
-(require 'eshell)
-
-(declare-function tramp-dissect-file-name "tramp")
 
 (defgroup quickrun2 nil
   "Execute buffer quickly"
@@ -273,12 +269,6 @@ if you set your own language configuration.
       (set-process-filter process #'quickrun2--default-filter)
       (set-process-sentinel process (quickrun2--make-sentinel rest-cmds src mode)))))
 
-(defun quickrun2--insert-command (cmd-str)
-  (goto-char (point-max))
-  (eshell-kill-input)
-  (insert cmd-str)
-  (eshell-send-input))
-
 (defsubst quickrun2--process-connection-type (cmd)
   ;; for suppressing 'carriage return'(^M)
   (not (string-match-p "\\`php" cmd)))
@@ -408,22 +398,15 @@ Place holders are beginning with '%' and replaced by:
         ((quickrun2--windows-p) ".exe")
         (t ".out")))
 
-(defun quickrun2--real-file-name (src)
-  (let ((buffile (buffer-file-name)))
-    (if (not (and buffile (file-remote-p buffile)))
-        src
-      (aref (tramp-dissect-file-name (buffer-file-name)) 3))))
-
 (defun quickrun2--place-holder-info (cmd cmdopt source args)
-  (let* ((src (quickrun2--real-file-name source))
-         (without-extension (file-name-sans-extension src))
-         (dirname (file-name-directory (expand-file-name src)))
+  (let* ((without-extension (file-name-sans-extension source))
+         (dirname (file-name-directory (expand-file-name source)))
          (directory (substring dirname 0 (- (length dirname) 1)))
          (executable-suffix (quickrun2--executable-suffix cmd))
          (executable-name (concat without-extension executable-suffix)))
     `(("%c" . ,cmd)
       ("%o" . ,cmdopt)
-      ("%s" . ,(file-name-nondirectory src))
+      ("%s" . ,(file-name-nondirectory source))
       ("%S" . ,(file-name-nondirectory without-extension))
       ("%n" . ,(expand-file-name without-extension))
       ("%N" . ,without-extension)
