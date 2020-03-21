@@ -1,41 +1,19 @@
-# quickrun.el [![travis badge][travis-badge]][travis-link] [![melpa badge][melpa-badge]][melpa-link] [![melpa stable badge][melpa-stable-badge]][melpa-stable-link]
+# quickrun2.el
 
 ## Introduction
 
-**quickrun.el** is Emacs port of [quickrun.vim](https://github.com/thinca/vim-quickrun).
+**quickrun2.el** is Emacs port of [quickrun.vim](https://github.com/thinca/vim-quickrun).
 
 
-`quickrun.el` is a extension to execute editing buffer.
-`quickrun.el` is similar to executable-interpret, but `quickrun.el` provides more convenient
-commands. `quickrun.el` execute not only script languages(Perl, Ruby, Python etc), but also
+`quickrun2.el` is a extension to execute editing buffer.
+`quickrun2.el` is similar to executable-interpret, but `quickrun2.el` provides more convenient
+commands. `quickrun2.el` execute not only script languages(Perl, Ruby, Python etc), but also
 compiling languages(C, C++, Go, Java etc) and markup language.
 
 
-## Requirements
-
-* Emacs 24.3 or higher.
-
-
-## Installation
-
-You can install `quickrun.el` from [MELPA](https://melpa.org/) with package.el.
-
-Or install directly:
-
-```
-$ cd load-path-dir
-$ wget https://raw.githubusercontent.com/syohex/emacs-quickrun/master/quickrun.el
-```
-
-After Installation add following to your configuration file(~/.emacs.d/init.el, ~/.emacs etc)
-
-```lisp
-(require 'quickrun)
-```
-
 ## Support Programming Languages
 
-`quickrun.el` supports following programming languages and markup languages
+`quickrun2.el` supports following programming languages and markup languages
 as default. But you can register your own command and apply other languages.
 
 **Programming Language(commands used)**
@@ -88,77 +66,77 @@ as default. But you can register your own command and apply other languages.
 * Gnuplot(gnuplot)
 
 
-See also `quickrun--support-languages` global variable.
+See also `quickrun2--support-languages` global variable.
 
 
 ## Basic Usage
 
-#### `quickrun`
+#### `quickrun2`
 
-Execute current buffer. If `quickrun.el` does not find command-key,
-then `quickrun.el` asks you command-key(You always input command
+Execute current buffer. If `quickrun2.el` does not find command-key,
+then `quickrun2.el` asks you command-key(You always input command
 if you use `C-u` prefix key)
 
-#### `quickrun-region`
+#### `quickrun2-region`
 
 Execute region. (Java is not supported)
 
-#### `quickrun-with-arg`
+#### `quickrun2-with-arg`
 
 Execute current buffer with arguments.
-`quickrun.el` asks you command line argument
+`quickrun2.el` asks you command line argument
 
-#### `quickrun-shell`
+#### `quickrun2-shell`
 
 Execute current buffer in eshell for interactive command such as program
 which reads input from STDIN.
 
-#### `quickrun-compile-only`
+#### `quickrun2-compile-only`
 
 Compile current buffer with compile.el framework, not execute.
-quickrun with `C-u C-u` prefix behaves same as quickrun-compile-only.
+quickrun2 with `C-u C-u` prefix behaves same as quickrun2-compile-only.
 
-#### `quickrun-replace-region`
+#### `quickrun2-replace-region`
 
 Replace region of code with its output.
 
-### `quickrun-autorun-mode`
+### `quickrun2-autorun-mode`
 
-Minor mode which executes `quickrun` after saving buffer.
+Minor mode which executes `quickrun2` after saving buffer.
 
-#### `helm-quickrun`
+#### `helm-quickrun2`
 
-`M-x quickrun` with helm interface
+`M-x quickrun2` with helm interface
 
-#### `anything-quickrun`
+#### `anything-quickrun2`
 
-`M-x quickrun` with anything interface
+`M-x quickrun2` with anything interface
 
 ## Note
 
-If quickrun returns `command not found`, please check `(executable-find "THE_COMMAND_NAME")` [for example `(executable-find "gnuplot")`] .
+If quickrun2 returns `command not found`, please check `(executable-find "THE_COMMAND_NAME")` [for example `(executable-find "gnuplot")`] .
 If this returns `nil`, I strongly recommend you use https://github.com/purcell/exec-path-from-shell
 
 ## Send File to STDIN
 
 If `executed_file.qrinput`(like `foo.c.qrinput`) is existed in directory same as executed
-buffer file, `quickrun.el` sends its content to stdin of executed program. Please set
-`quickrun-input-file-extension` to `nil` If you want to disable this feature.
+buffer file, `quickrun2.el` sends its content to stdin of executed program. Please set
+`quickrun2-input-file-extension` to `nil` If you want to disable this feature.
 
 ## Customize
 
-### `quickrun-focus-p`(Default: `t`)
+### `quickrun2-focus-p`(Default: `t`)
 
-If this value is `nil`, quickrun.el does not move focus to output buffer.
+If this value is `nil`, quickrun2.el does not move focus to output buffer.
 
 
 ## User Defined Command
 
-You can add your own command or override existsing command  by `quickrun-add-command` as below.
+You can add your own command or override existsing command  by `quickrun2-add-command` as below.
 
 ```lisp
 ;; Use this parameter as C++ default
-(quickrun-add-command "c++/c1z"
+(quickrun2-add-command "c++/c1z"
   '((:command . "g++")
     (:exec    . ("%c -std=c++1z %o -o %e %s"
 		 "%e %a"))
@@ -166,20 +144,20 @@ You can add your own command or override existsing command  by `quickrun-add-com
   :default "c++")
 
 ;; Use this parameter in pod-mode
-(quickrun-add-command "pod"
+(quickrun2-add-command "pod"
   '((:command . "perldoc")
     (:exec    . "%c -T -F %s"))
   :mode 'pod-mode)
 
 ;; You can override existing command
-(quickrun-add-command "c/gcc"
+(quickrun2-add-command "c/gcc"
   '((:exec . ("%c -std=c++1z %o -o %e %s"
 	      "%e %a")))
   :override t)
 ```
 
-First argument of `quickrun-add-command` is command key. Second argument of it is
-command parameter, which is described laster. `quickrun-add-command` also takes
+First argument of `quickrun2-add-command` is command key. Second argument of it is
+command parameter, which is described laster. `quickrun2-add-command` also takes
 key parameters, `:default`, `:mode`, `:override`.
 
 | Argument         | Description                                                 |
@@ -204,21 +182,21 @@ Command(`:command`) option. `%o` is expanded into this value.
 #### `:execute`
 
 Executed commands. You can also set command list parameter.
-If you set list parameter, `quickrun.el` executes command
+If you set list parameter, `quickrun2.el` executes command
 list in order.
 
-If this parameter is omitted, `quickrun.el` use default execute
+If this parameter is omitted, `quickrun2.el` use default execute
 command template "%c %o %s %a".
 
 
 #### `:compile-only`
 
-Command exected by `quickrun-compile-only`. This option is used for
+Command exected by `quickrun2-compile-only`. This option is used for
 syntax check or converting another language(e.g. CoffeeScript => JavaScript).
 
 ### `:compile-conf`
 
-Configuration of `quickrun-compile-only`. This parameter must be alist.
+Configuration of `quickrun2-compile-only`. This parameter must be alist.
 
 #### `:remove`
 
@@ -236,15 +214,15 @@ Directory where commands are executed.
 
 #### `:tempfile`
 
-Use temporary file or not. `quickrun.el` uses temporary file
+Use temporary file or not. `quickrun2.el` uses temporary file
 if you omit this parameter.
 
-NOTE: If you set this parameter, you cannot use `quickrun-region`.
+NOTE: If you set this parameter, you cannot use `quickrun2-region`.
 
 #### `:description`
 
 Description of this command. This parameter is used in
-`helm-quickrun` or `anything-quickrun`
+`helm-quickrun2` or `anything-quickrun2`
 
 
 ### Placeholders
@@ -264,69 +242,69 @@ You can use following placeholders in command parameter
 |  `%E`       |  Source with executable suffix(nondirectory)  |
 
 Source file name(`%s`, `%n` etc) is not original file name except
-Java language. Because `quickrun.el` copys source file to temporary
+Java language. Because `quickrun2.el` copys source file to temporary
 file firstly.
 
 
 ## Change Default Command
 
-`quickrun-set-default` changes default command in language that is registerd
+`quickrun2-set-default` changes default command in language that is registerd
 multiple command parameters(like c, c++,Javascript).
 
 ```lisp
-(quickrun-set-default "c" "c/clang")
+(quickrun2-set-default "c" "c/clang")
 ```
 
-This means that quickrun uses "c/clang" for C files.
+This means that quickrun2 uses "c/clang" for C files.
 
 
 ## Timeout Seconds
 
-`quickrun.el` kills process if program run over 10 seconds as default.
+`quickrun2.el` kills process if program run over 10 seconds as default.
 This avoids infinite loop program or endless program by some mistakes.
-You control timeout second to set `quickrun-timeout-seconds`.
-This feature is disabled if `quickrun-timeout-seconds` is `nil`.
-(You can also kill process by `C-c C-c` in quickrun buffer)
+You control timeout second to set `quickrun2-timeout-seconds`.
+This feature is disabled if `quickrun2-timeout-seconds` is `nil`.
+(You can also kill process by `C-c C-c` in quickrun2 buffer)
 
 
-## Key bindings in quickrun buffer
+## Key bindings in quickrun2 buffer
 
 | Key       | Command                |
 |:---------:|:-----------------------|
-| `q`       | Close quickrun window  |
-| `C-c C-c` | Kill quickrun process  |
+| `q`       | Close quickrun2 window  |
+| `C-c C-c` | Kill quickrun2 process  |
 
 
 ## Buffer Local Variables
 
 Buffer local variables is priority to default parameters.
 
-#### `quickrun-option-cmd-alist`
+#### `quickrun2-option-cmd-alist`
 
 Command alist.
 
-#### `quickrun-option-command`
+#### `quickrun2-option-command`
 
 Command key(Expanded to %c)
 
-#### `quickrun-option-cmdkey`
+#### `quickrun2-option-cmdkey`
 
 Command key of command parameter.
 
-#### `quickrun-option-cmdopt`
+#### `quickrun2-option-cmdopt`
 
 Command option(Expanded to %o)
 
-#### `quickrun-option-args`
+#### `quickrun2-option-args`
 
 Program argument(Expanded to %a.)
 
-#### `quickrun-option-shebang`
+#### `quickrun2-option-shebang`
 
 If this value is `non-nil` and first line of source file is started "#!",
 the following string is treated as ":command".
 
-#### `quickrun-option-outputter`
+#### `quickrun2-option-outputter`
 
 Outputter function. See *Outputter* section
 
@@ -357,7 +335,7 @@ int main (int argc, char *argv[])
 
 /*
   Local Variables:
-  quickrun-option-cmd-alist: ((:command . "g++")
+  quickrun2-option-cmd-alist: ((:command . "g++")
                               (:exec    . ("%c -std=c++0x -o %n %s"
                                            "%n apple orange melon"))
                               (:remove  . ("%n")))
@@ -368,7 +346,7 @@ int main (int argc, char *argv[])
 
 ## Hooks
 
-#### `quickrun-after-run-hook`
+#### `quickrun2-after-run-hook`
 
 Run hooks after execute all commands.
 
@@ -376,9 +354,9 @@ Run hooks after execute all commands.
 ## Outputter
 
 Outputter is a function for processing command output. Default outputter is
-to output to \*quickrun\* buffer and processing ANSI Color sequence.
+to output to \*quickrun2\* buffer and processing ANSI Color sequence.
 
-`quickrun.el` defines following functions as default.
+`quickrun2.el` defines following functions as default.
 
 #### `buffer:buffername`
 
@@ -409,9 +387,9 @@ Use multiple outputters. [outputter *multi* sample](sample/sample_outputter_mult
 No output. [outputter *null* sample](sample/sample_outputter_null.pl)
 
 
-## Using quickrun as function from other functions
+## Using quickrun2 as function from other functions
 
-`quickrun` can be used as function from other functions.
+`quickrun2` can be used as function from other functions.
 You can pass configuration by `:source` argument.
 Sample is following:
 
@@ -424,14 +402,7 @@ Sample is following:
                    (goto-char (point-min))
                    (if (re-search-forward "^\\(.+\\)$" nil t)
                        (match-string 1)))))
-    (quickrun :source `((:command . "prove")
+    (quickrun2 :source `((:command . "prove")
                         (:default-directory . ,topdir)
                         (:exec . ("%c -bv --color %s"))))))
 ```
-
-[travis-badge]: https://travis-ci.org/syohex/emacs-quickrun.svg
-[travis-link]: https://travis-ci.org/syohex/emacs-quickrun
-[melpa-link]: https://melpa.org/#/quickrun
-[melpa-stable-link]: https://stable.melpa.org/#/quickrun
-[melpa-badge]: https://melpa.org/packages/quickrun-badge.svg
-[melpa-stable-badge]: https://stable.melpa.org/packages/quickrun-badge.svg

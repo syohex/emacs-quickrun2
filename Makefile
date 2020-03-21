@@ -1,16 +1,9 @@
-EMACS ?= emacs
-CASK ?= cask
+.PHONY: test
 
+EMACS ?= emacs
 LOADPATH = -L .
 
-ELPA_DIR = $(shell EMACS=$(EMACS) $(CASK) package-directory)
-
-test: elpa
-	$(CASK) exec $(EMACS) -Q -batch $(LOADPATH) \
-		-l test/test-quickrun.el \
+test:
+	emacs -Q -batch $(LOADPATH) \
+		-l test/test-quickrun2.el \
 		-f ert-run-tests-batch-and-exit
-
-elpa: $(ELPA_DIR)
-$(ELPA_DIR): Cask
-	$(CASK) install
-	touch $@

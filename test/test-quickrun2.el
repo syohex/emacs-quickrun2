@@ -1,8 +1,8 @@
-;;; test-quickrun.el --- test for quickrun
+;;; test-quickrun2.el --- test for quickrun2
 
-;; Copyright (C) 2017 by Syohei YOSHIDA
+;; Copyright (C) 2020 by Shohei YOSHIDA
 
-;; Author: Syohei YOSHIDA <syohex@gmail.com>
+;; Author: Shohei YOSHIDA <syohex@gmail.com>
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -22,59 +22,59 @@
 ;;; Code:
 
 (require 'ert)
-(require 'quickrun)
+(require 'quickrun2)
 
-(ert-deftest quickrun:exec-quickrun ()
-  "Exec `quickrun'"
+(ert-deftest quickrun2:exec-quickrun2 ()
+  "Exec `quickrun2'"
   (let ((buf (find-file-noselect "sample/sample.py")))
     (with-current-buffer buf
-      (quickrun))
-    ;; quickrun is async function
+      (quickrun2))
+    ;; quickrun2 is async function
     (sleep-for 1)
-    (with-current-buffer "*quickrun*"
+    (with-current-buffer "*quickrun2*"
       (let ((str (buffer-substring-no-properties (point-min) (point-max))))
-        (should (string= "Hello Python quickrun.el\n" str))))
+        (should (string= "Hello Python quickrun2.el\n" str))))
     (sleep-for 1)))
 
-(ert-deftest quickrun:add-command ()
+(ert-deftest quickrun2:add-command ()
   "Add new command"
-  (quickrun-add-command "-test"
+  (quickrun2-add-command "-test"
                         '((:command . "test foo")
                           (:description . "test description")))
-  (let ((params (assoc-default "-test" quickrun--language-alist)))
+  (let ((params (assoc-default "-test" quickrun2--language-alist)))
     (should params)
     (let ((command (assoc-default :command params))
           (desc (assoc-default :description params)))
       (should (string= command "test foo"))
       (should (string= desc "test description")))))
 
-(ert-deftest quickrun:override-configuration ()
+(ert-deftest quickrun2:override-configuration ()
   "Override registerd command"
-  (quickrun-add-command "c/gcc"
+  (quickrun2-add-command "c/gcc"
                         '((:command . "clang")
                           (:description . "Compile clang"))
                         :override t)
-  (let* ((params (assoc-default "c/gcc" quickrun--language-alist))
+  (let* ((params (assoc-default "c/gcc" quickrun2--language-alist))
          (command (assoc-default :command params)))
     (should (string= command "clang"))))
 
-(ert-deftest quickrun:use-tempfile-p ()
+(ert-deftest quickrun2:use-tempfile-p ()
   "Whether use temporary file or not."
-  (quickrun-add-command "tempfile0" '((:command . "tempfile0") (:tempfile . t)))
-  (let ((use-tempfile (quickrun--use-tempfile-p "tempfile0")))
+  (quickrun2-add-command "tempfile0" '((:command . "tempfile0") (:tempfile . t)))
+  (let ((use-tempfile (quickrun2--use-tempfile-p "tempfile0")))
     (should use-tempfile))
 
-  (quickrun-add-command "tempfile1" '((:command . "tempfile1") (:tempfile . nil)))
-  (let ((use-tempfile (quickrun--use-tempfile-p "tempfile1")))
+  (quickrun2-add-command "tempfile1" '((:command . "tempfile1") (:tempfile . nil)))
+  (let ((use-tempfile (quickrun2--use-tempfile-p "tempfile1")))
     (should-not use-tempfile))
 
   ;; use temporary file if :tempfile paramter is not specified
-  (quickrun-add-command "tempfile2" '((:command . "tempfile2")))
-  (let ((use-tempfile (quickrun--use-tempfile-p "tempfile2")))
+  (quickrun2-add-command "tempfile2" '((:command . "tempfile2")))
+  (let ((use-tempfile (quickrun2--use-tempfile-p "tempfile2")))
     (should use-tempfile))
 
-  (let* ((quickrun--compile-only-flag t)
-         (use-tempfile (quickrun--use-tempfile-p "hoge")))
+  (let* ((quickrun2--compile-only-flag t)
+         (use-tempfile (quickrun2--use-tempfile-p "hoge")))
     (should-not use-tempfile)))
 
-;;; test-quickrun.el ends here
+;;; test-quickrun2.el ends here

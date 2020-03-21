@@ -1,4 +1,4 @@
 def helloworld (arg):
     print("Hello Python " + arg)
 
-helloworld("quickrun.el")
+helloworld("quickrun2.el")
