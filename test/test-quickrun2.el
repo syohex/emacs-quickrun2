@@ -24,17 +24,16 @@
 (require 'ert)
 (require 'quickrun2)
 
-(ert-deftest quickrun2:exec-quickrun2 ()
+(ert-deftest exec-quickrun2 ()
   "Exec `quickrun2'"
-  (let ((buf (find-file-noselect "sample/sample.py")))
+  (let ((buf (find-file-noselect "test/file/test.py")))
     (with-current-buffer buf
       (quickrun2))
     ;; quickrun2 is async function
     (sleep-for 1)
     (with-current-buffer "*quickrun2*"
       (let ((str (buffer-substring-no-properties (point-min) (point-max))))
-        (should (string= "Hello Python quickrun2.el\n" str))))
-    (sleep-for 1)))
+        (should (string= "hello quickrun2 in python\n" str))))))
 
 (ert-deftest quickrun2:add-command ()
   "Add new command"
@@ -48,17 +47,17 @@
       (should (string= command "test foo"))
       (should (string= desc "test description")))))
 
-(ert-deftest quickrun2:override-configuration ()
+(ert-deftest override-configuration ()
   "Override registerd command"
   (quickrun2-add-command "c/gcc"
-                        '((:command . "clang")
-                          (:description . "Compile clang"))
-                        :override t)
+                         '((:command . "clang")
+                           (:description . "Compile clang"))
+                         :override t)
   (let* ((params (assoc-default "c/gcc" quickrun2--language-alist))
          (command (assoc-default :command params)))
     (should (string= command "clang"))))
 
-(ert-deftest quickrun2:use-tempfile-p ()
+(ert-deftest use-tempfile-p ()
   "Whether use temporary file or not."
   (quickrun2-add-command "tempfile0" '((:command . "tempfile0") (:tempfile . t)))
   (let ((use-tempfile (quickrun2--use-tempfile-p "tempfile0")))
@@ -74,7 +73,9 @@
     (should use-tempfile))
 
   (let* ((quickrun2--compile-only-flag t)
-         (use-tempfile (quickrun2--use-tempfile-p "hoge")))
-    (should-not use-tempfile)))
+         (not-found (catch 'quickrun2
+                      (quickrun2--use-tempfile-p "hoge")
+                      nil)))
+    (should not-found)))
 
 ;;; test-quickrun2.el ends here
