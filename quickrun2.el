@@ -42,9 +42,6 @@
 (require 'em-banner)
 (require 'eshell)
 
-;; for warnings of byte-compile
-(declare-function anything "anything")
-(declare-function helm "helm")
 (declare-function tramp-dissect-file-name "tramp")
 
 (defgroup quickrun2 nil
@@ -72,7 +69,6 @@
 (defconst quickrun2--buffer-name "*quickrun2*")
 (defvar quickrun2--executed-file nil)
 (defvar quickrun2--remove-files nil)
-(defvar quickrun2--compile-only-flag nil)
 (defvar quickrun2--original-buffer nil)
 (defvar quickrun2--original-outputter nil)
 
@@ -114,17 +110,9 @@
                    nil stringp
                    "Specify command directly as file local variable")
 
-(quickrun2--defvar quickrun2-option-cmdkey
-                   nil stringp
-                   "Specify language key directly as file local variable")
-
 (quickrun2--defvar quickrun2-option-cmdopt
                    nil stringp
                    "Specify command option directly as file local variable")
-
-(quickrun2--defvar quickrun2-option-args
-                   nil stringp
-                   "Specify command argument directly as file local variable")
 
 (defun quickrun2--outputter-p (_x)
   (lambda (x)
@@ -160,33 +148,29 @@
 (defvar quickrun2--language-alist
   '(("c/gcc" . ((:command . "gcc")
                 (:exec    . ("%c -x c %o -o %e %s" "%e %a"))
-                (:compile-only . "%c -Wall -Werror %o -o %e %s")
                 (:remove . ("%e"))
                 (:description . "Compile C file with gcc and execute")))
 
     ("c/clang" . ((:command . "clang")
                   (:exec    . ("%c -x c %o -o %e %s" "%e %a"))
-                  (:compile-only . "%c -Wall -Werror %o -o %e %s")
                   (:remove  . ("%e"))
                   (:description . "Compile C file with llvm/clang and execute")))
 
     ("c++/g++" . ((:command . "g++")
                   (:exec    . ("%c -x c++ %o -o %e %s" "%e %a"))
-                  (:compile-only . "%c -Wall -Werror %o -o %e %s")
                   (:remove  . ("%e"))
                   (:description . "Compile C++ file with g++ and execute")))
 
     ("c++/clang++" . ((:command . "clang++")
                       (:exec    . ("%c -x c++ %o -o %e %s" "%e %a"))
-                      (:compile-only . "%c -Wall -Werror %o -o %e %s")
                       (:remove  . ("%e"))
                       (:description . "Compile C++ file with llvm/clang++ and execute")))
 
-    ("perl" . ((:command . "perl") (:compile-only . "%c -wc %s")
+    ("perl" . ((:command . "perl")
                (:description . "Run Perl script")))
-    ("ruby" . ((:command . "ruby") (:compile-only . "%c -wc %s")
+    ("ruby" . ((:command . "ruby")
                (:description . "Run Ruby script")))
-    ("python" . ((:command . "python") (:compile-only . "pyflakes %s")
+    ("python" . ((:command . "python")
                  (:description . "Run Python script")))
 
     ("javascript" . ((:command . "node")
@@ -197,7 +181,6 @@
                               (if (string-match-p "_test\\.go\\'" (buffer-name))
                                   "%c test %o"
                                 "%c run %o %s %a"))))
-               (:compile-only . "%c build -o /dev/null %s %o %a")
                (:tempfile . nil)
                (:description . "Compile go file and execute with 'go'")))
     )
@@ -289,10 +272,10 @@ if you set your own language configuration.
              (process-file-shell-command cmd nil t)
              (goto-char (point-min))
              (quickrun2--awhen (assoc-default :mode compile-conf)
-                               (funcall it)
-                               (quickrun2--pop-to-buffer
-                                (current-buffer) (lambda () (read-only-mode +1)))
-                               (read-only-mode +1)))
+               (funcall it)
+               (quickrun2--pop-to-buffer
+                (current-buffer) (lambda () (read-only-mode +1)))
+               (read-only-mode +1)))
            (quickrun2--remove-temp-files)))))
 
 (defun quickrun2--compilation-finish-func (_buffer _str)
@@ -302,7 +285,6 @@ if you set your own language configuration.
 ;; Execute
 ;;
 (defvar quickrun2--timeout-timer nil)
-(defvar quickrun2--run-in-shell nil)
 
 (defsubst quickrun2--concat-commands (cmd-lst)
   (mapconcat 'identity cmd-lst " && "))
@@ -335,46 +317,19 @@ if you set your own language configuration.
       (ansi-color-apply-on-region start (point)))))
 
 (defun quickrun2--exec (cmd-lst src mode)
-  (if quickrun2--run-in-shell
-      (quickrun2--send-to-shell cmd-lst)
-    (ignore-errors
-      (let* ((next-cmd  (car cmd-lst))
-             (rest-cmds (cdr cmd-lst))
-             (process (quickrun2--exec-cmd next-cmd))
-             (outputter (or quickrun2-option-outputter
-                            'quickrun2--default-outputter)))
-        (when (and (null rest-cmds) quickrun2-input-file-extension)
-          (let ((file (quickrun2--stdin-file-name)))
-            (quickrun2--send-file-as-stdin process file)))
-        (when (eq outputter 'quickrun2--default-outputter)
-          (set-process-filter process #'quickrun2--default-filter))
-        (set-process-sentinel process
-                              (quickrun2--make-sentinel rest-cmds outputter src mode))))))
-
-(defvar quickrun2--eshell-buffer-name "*eshell-quickrun2*")
-(defvar quickrun2--shell-last-command)
-
-(defun quickrun2--eshell-finish ()
-  (quickrun2--remove-temp-files)
-  (remove-hook 'eshell-post-command-hook 'quickrun2--eshell-post-hook))
-
-(defun quickrun2--eshell-window-restore ()
-  (interactive)
-  (jump-to-register :quickrun2-shell))
-
-(defun quickrun2--eshell-post-hook ()
-  (let ((rerun-p nil)
-        (prompt "Press 'r' to run again, any other key to finish"))
-    (unwind-protect
-        (ignore-errors
-          (let ((input (read-char prompt)))
-            (when (char-equal input ?r)
-              (quickrun2--insert-command quickrun2--shell-last-command)
-              (setq rerun-p t))))
-      (unless rerun-p
-        (quickrun2--eshell-finish)
-        (read-only-mode +1)
-        (local-set-key (kbd "q") 'quickrun2--eshell-window-restore)))))
+  (ignore-errors
+    (let* ((next-cmd  (car cmd-lst))
+           (rest-cmds (cdr cmd-lst))
+           (process (quickrun2--exec-cmd next-cmd))
+           (outputter (or quickrun2-option-outputter
+                          'quickrun2--default-outputter)))
+      (when (and (null rest-cmds) quickrun2-input-file-extension)
+        (let ((file (quickrun2--stdin-file-name)))
+          (quickrun2--send-file-as-stdin process file)))
+      (when (eq outputter 'quickrun2--default-outputter)
+        (set-process-filter process #'quickrun2--default-filter))
+      (set-process-sentinel process
+                            (quickrun2--make-sentinel rest-cmds outputter src mode)))))
 
 (defun quickrun2--insert-command (cmd-str)
   (goto-char (point-max))
@@ -382,36 +337,17 @@ if you set your own language configuration.
   (insert cmd-str)
   (eshell-send-input))
 
-(defun quickrun2--send-to-shell (cmd-lst)
-  (window-configuration-to-register :quickrun2-shell)
-  (let ((buf (get-buffer quickrun2--buffer-name))
-        (win (selected-window)))
-    (pop-to-buffer buf)
-    (let ((cmd-str (quickrun2--concat-commands cmd-lst))
-          (eshell-buf (get-buffer quickrun2--eshell-buffer-name))
-          (eshell-buffer-name quickrun2--eshell-buffer-name)
-          (eshell-banner-message ""))
-      (when eshell-buf
-        (kill-buffer eshell-buf))
-      (eshell)
-      (kill-buffer quickrun2--buffer-name)
-      (setq-local quickrun2--shell-last-command cmd-str)
-      (add-hook 'eshell-post-command-hook 'quickrun2--eshell-post-hook)
-      (quickrun2--insert-command cmd-str)
-      (unless quickrun2-focus-p
-        (select-window win)))))
-
 (defsubst quickrun2--default-directory ()
   (or quickrun2-option-default-directory default-directory))
 
 (defun quickrun2--set-default-directory (cmd-key)
   (let ((cmd-info (quickrun2--command-info cmd-key)))
     (quickrun2--awhen (assoc-default :default-directory cmd-info)
-                      (let ((formatted (file-name-as-directory it)))
-                        (unless (file-directory-p formatted)
-                          (throw 'quickrun2
-                                 (format "'%s' is not existed directory" it)))
-                        (setq quickrun2-option-default-directory formatted)))))
+      (let ((formatted (file-name-as-directory it)))
+        (unless (file-directory-p formatted)
+          (throw 'quickrun2
+                 (format "'%s' is not existed directory" it)))
+        (setq quickrun2-option-default-directory formatted)))))
 
 (defsubst quickrun2--process-connection-type (cmd)
   ;; for suppressing 'carriage return'(^M)
@@ -480,10 +416,7 @@ if you set your own language configuration.
   '(
     (message  . quickrun2--outputter-message)
     (browser  . quickrun2--outputter-browser)
-    (null     . quickrun2--outputter-null)
-    (replace  . quickrun2--outputter-replace-region)
-    (eval-print . quickrun2--outputter-eval-print)
-    ))
+    (null     . quickrun2--outputter-null)))
 
 (defvar quickrun2--defined-outputter-symbol-with-arg
   '(
@@ -525,22 +458,6 @@ if you set your own language configuration.
 (defun quickrun2--outputter-null ()
   (delete-region (point-min) (point-max))
   (kill-buffer (get-buffer quickrun2--buffer-name)))
-
-(defun quickrun2--outputter-replace-region ()
-  (let ((output (buffer-substring-no-properties (point-min) (point-max))))
-    (with-current-buffer quickrun2--original-buffer
-      (delete-region (region-beginning) (region-end))
-      (insert output)
-      (setq quickrun2-option-outputter quickrun2--original-outputter))))
-
-(defun quickrun2--outputter-eval-print ()
-  (let ((output (buffer-substring-no-properties (point-min) (point-max))))
-    (with-current-buffer quickrun2--original-buffer
-      (forward-line 1)
-      (let ((start (point)))
-        (insert output)
-        (comment-region start (point))
-        (setq quickrun2-option-outputter quickrun2--original-outputter)))))
 
 (defun quickrun2--outputter-buffer (bufname)
   (let ((str (buffer-substring (point-min) (point-max))))
@@ -706,18 +623,13 @@ Place holders are beginning with '%' and replaced by:
                  (throw 'quickrun2 "Not found :command parameter")))
         (cmd-opt (or quickrun2-option-cmdopt
                      (quickrun2--extract-template :cmdopt cmd-info) ""))
-        (arg (or quickrun2-option-args
-                 (quickrun2--extract-template :args cmd-info) "")))
+        (arg (or (quickrun2--extract-template :args cmd-info)) ""))
     (quickrun2--place-holder-info cmd cmd-opt src arg)))
 
 (defun quickrun2--fill-templates (cmd-key src)
   (let* ((cmd-info (quickrun2--command-info cmd-key))
          (tmpl-arg (quickrun2--template-argument cmd-info src))
          (info (make-hash-table)))
-    ;; take one parameter
-    (cl-loop for key in '(:compile-only)
-             when (quickrun2--extract-template key cmd-info)
-             do (puthash key (quickrun2--fill-template it tmpl-arg) info))
     ;; take one or more parameters
     (cl-loop for key in '(:exec :remove)
              when (quickrun2--extract-template key cmd-info t)
@@ -794,7 +706,7 @@ by quickrun2.el. But you can register your own command for some languages")
 
 (defun quickrun2--set-command-key (lang candidates)
   (quickrun2--awhen (quickrun2--find-executable candidates)
-                    (puthash lang (format "%s/%s" lang it) quickrun2--command-key-table)))
+    (puthash lang (format "%s/%s" lang it) quickrun2--command-key-table)))
 
 (defsubst quickrun2--c-compiler ()
   (cond((eq system-type 'darwin) '("clang" "gcc"))
@@ -841,8 +753,7 @@ by quickrun2.el. But you can register your own command for some languages")
 ;;;###autoload
 (defun quickrun2 (&rest plist)
   "Run commands quickly for current buffer
-   With universal prefix argument(C-u), select command-key,
-   With double prefix argument(C-u C-u), run in compile-only-mode"
+   With universal prefix argument(C-u), select command-key"
   (interactive)
   (quickrun2--set-executed-file)
   (let ((beg (or (plist-get plist :start) (point-min)))
@@ -850,10 +761,7 @@ by quickrun2.el. But you can register your own command for some languages")
         (quickrun2-option-cmd-alist (or quickrun2-option-cmd-alist
                                         (plist-get plist :source)))
         (quickrun2-timeout-seconds (or quickrun2-option-timeout-seconds
-                                       quickrun2-timeout-seconds))
-        (quickrun2--compile-only-flag (or quickrun2--compile-only-flag
-                                          (and (consp current-prefix-arg)
-                                               (= (car current-prefix-arg) 16)))))
+                                       quickrun2-timeout-seconds)))
     (let ((has-error (catch 'quickrun2
                        (quickrun2--common beg end)
                        nil)))
@@ -861,20 +769,10 @@ by quickrun2.el. But you can register your own command for some languages")
         (message "%s" has-error)
         (quickrun2--remove-temp-files)))))
 
-(defvar quickrun2--with-arg--history nil)
-
-;;;###autoload
-(defun quickrun2-with-arg (arg)
-  "Run commands quickly for current buffer with arguments"
-  (interactive
-   (list (read-string "Quickrun2 Arg: " nil 'quickrun2--with-arg--history)))
-  (let ((quickrun2-option-args arg))
-    (quickrun2)))
-
 (defvar quickrun2--last-cmd-key nil)
 
 (defun quickrun2--prompt ()
-  (let* ((default (or quickrun2-option-cmdkey quickrun2--last-cmd-key))
+  (let* ((default quickrun2--last-cmd-key)
          (prompt (format "Quickrun2 Lang%s: "(if default
                                                  (format "[Default: %s]" default)
                                                ""))))
@@ -906,21 +804,6 @@ by quickrun2.el. But you can register your own command for some languages")
   (let ((quickrun2-option-outputter 'eval-print))
     (quickrun2--region-command-common start end)))
 
-;;;###autoload
-(defun quickrun2-compile-only ()
-  "Exec only compilation"
-  (interactive)
-  (let ((quickrun2--compile-only-flag t))
-    (quickrun2)))
-
-;;;###autoload
-(defun quickrun2-shell ()
-  "Run commands in shell for interactive programs"
-  (interactive)
-  (let ((quickrun2--run-in-shell t)
-        (quickrun2-timeout-seconds nil))
-    (quickrun2)))
-
 (defun quickrun2--add-remove-files (removed-files)
   (let ((abs-paths (mapcar 'expand-file-name (quickrun2--mklist removed-files))))
     (setq quickrun2--remove-files (append abs-paths quickrun2--remove-files))))
@@ -937,7 +820,6 @@ by quickrun2.el. But you can register your own command for some languages")
                            (= (car current-prefix-arg) 4))))
     (or (and use-prefix-p (quickrun2--prompt))
         (and quickrun2-option-cmd-alist "_user_defined") ;; setting dummy value
-        quickrun2-option-cmdkey
         (and (not src) (quickrun2--prompt))
         (gethash file-type quickrun2--command-key-table)
         file-type
@@ -969,7 +851,7 @@ by quickrun2.el. But you can register your own command for some languages")
 
 (defun quickrun2--use-tempfile-p (cmd-key)
   (let ((buffile (buffer-file-name)))
-    (unless (or quickrun2--compile-only-flag (and buffile (file-remote-p buffile)))
+    (unless (and buffile (file-remote-p buffile))
       (let* ((cmdinfo (quickrun2--command-info cmd-key))
              (tempfile-param (assoc :tempfile cmdinfo)))
         (if tempfile-param
@@ -977,8 +859,7 @@ by quickrun2.el. But you can register your own command for some languages")
           t)))))
 
 (defsubst quickrun2--buffer-popup-p ()
-  (and (not (quickrun2--defined-outputter-p quickrun2-option-outputter))
-       (not quickrun2--run-in-shell)))
+  (not (quickrun2--defined-outputter-p quickrun2-option-outputter)))
 
 (defun quickrun2--common (start end)
   (let* ((orig-src quickrun2--executed-file)
@@ -997,22 +878,12 @@ by quickrun2.el. But you can register your own command for some languages")
         (quickrun2--add-remove-files (gethash :remove cmd-info-hash))
         (unless quickrun2-option-outputter
           (setq quickrun2-option-outputter (gethash :outputter cmd-info-hash)))
-        (cond (quickrun2--compile-only-flag
-               (let* ((cmd (gethash :compile-only cmd-info-hash))
-                      (cmd-info (quickrun2--command-info cmd-key))
-                      (compile-conf (assoc-default :compile-conf cmd-info)))
-                 (unless cmd
-                   (throw 'quickrun2
-                          (format "%s does not support quickrun2-compile-only"
-                                  cmd-key)))
-                 (quickrun2--compilation-start cmd compile-conf)))
-              (t
-               (let ((buf (get-buffer-create quickrun2--buffer-name)))
-                 (quickrun2--setup-exec-buffer buf)
-                 (quickrun2--exec (gethash :exec cmd-info-hash)
-                                  (file-name-nondirectory src) major-mode)
-                 (when (quickrun2--buffer-popup-p)
-                   (quickrun2--pop-to-buffer buf 'quickrun2--mode)))))))))
+        (let ((buf (get-buffer-create quickrun2--buffer-name)))
+          (quickrun2--setup-exec-buffer buf)
+          (quickrun2--exec (gethash :exec cmd-info-hash)
+                           (file-name-nondirectory src) major-mode)
+          (when (quickrun2--buffer-popup-p)
+            (quickrun2--pop-to-buffer buf 'quickrun2--mode)))))))
 
 (provide 'quickrun2)
 ;;; quickrun2.el ends here
