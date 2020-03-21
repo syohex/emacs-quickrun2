@@ -1,4 +1,4 @@
-# quickrun2.el
+# quickrun2.el ![](https://github.com/syohex/emacs-quickrun2/workflows/CI/badge.svg)
 
 ## Introduction
 
