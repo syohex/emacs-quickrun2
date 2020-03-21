@@ -100,18 +100,6 @@ quickrun2 with `C-u C-u` prefix behaves same as quickrun2-compile-only.
 
 Replace region of code with its output.
 
-### `quickrun2-autorun-mode`
-
-Minor mode which executes `quickrun2` after saving buffer.
-
-#### `helm-quickrun2`
-
-`M-x quickrun2` with helm interface
-
-#### `anything-quickrun2`
-
-`M-x quickrun2` with anything interface
-
 ## Note
 
 If quickrun2 returns `command not found`, please check `(executable-find "THE_COMMAND_NAME")` [for example `(executable-find "gnuplot")`] .
@@ -336,9 +324,9 @@ int main (int argc, char *argv[])
 /*
   Local Variables:
   quickrun2-option-cmd-alist: ((:command . "g++")
-                              (:exec    . ("%c -std=c++0x -o %n %s"
+                               (:exec    . ("%c -std=c++14 -o %n %s"
                                            "%n apple orange melon"))
-                              (:remove  . ("%n")))
+                               (:remove  . ("%n")))
   End:
 */
 ```
