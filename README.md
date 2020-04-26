@@ -11,29 +11,23 @@ commands. `quickrun2.el` execute not only script languages(Perl, Ruby, Python et
 compiling languages(C, C++, Go, Java etc) and markup language.
 
 
-## Support Programming Languages
+## Default supported languages
 
-`quickrun2.el` supports following programming languages and markup languages
-as default. But you can register your own command and apply other languages.
-
-**Programming Language(commands used)**
-
-* C(gcc or clang or Visual C++)
-* C++(g++ or clang++ or Visual C++)
-* Perl(perl)
-* Ruby(ruby or mruby)
-* Python(python)
+* C
+* C++
+* Perl
+* Ruby
+* Python
 * node.js
-* Go Language(go or gccgo)
-
-See also `quickrun2--support-languages` global variable.
+* Go Language
+* Rust
 
 
 ## Basic Usage
 
 #### `quickrun2`
 
-Execute current file. If `quickrun2.el` does not find command-key,
+Execute current file. If `quickrun2.el` does not find langauge source,
 then `quickrun2.el` asks you command-key(You always input command
 if you use `C-u` prefix key)
 
@@ -49,6 +43,8 @@ If this value is `nil`, quickrun2.el does not move focus to output buffer.
 ```lisp
 (quickrun2-define-source typescript
   :inherit 'interpreter-base
+  :major-mode '(typescript-mode)
+  :pattern "\\.ts\\'"
   :command "ts-node")
 ```
 
