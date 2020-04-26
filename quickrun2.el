@@ -100,6 +100,18 @@
                            #'quickrun2--kill-process proc timeout)))
       proc)))
 
+(defun quickrun2--recenter (arg)
+  (with-selected-window (get-buffer-window quickrun2--buffer-name)
+    (recenter arg)))
+
+(defun quickrun2--set-output-buffer ()
+  (let ((buf (get-buffer quickrun2--buffer-name)))
+    (with-current-buffer buf
+      (goto-char (point-min))
+      (read-only-mode -1)
+      (quickrun2--recenter -1)
+      (read-only-mode +1))))
+
 (defun quickrun2--set-error-buffer (orig-file orig-mode use-tempfile)
   (with-current-buffer (get-buffer quickrun2--buffer-name)
     (read-only-mode -1)
@@ -165,17 +177,6 @@
   ""
   (read-only-mode +1)
   (use-local-map quickrun2--mode-map))
-
-(defun quickrun2--recenter (arg)
-  (with-selected-window (get-buffer-window quickrun2--buffer-name)
-    (recenter arg)))
-
-(defun quickrun2--set-output-buffer ()
-  (let ((buf (get-buffer quickrun2--buffer-name)))
-    (with-current-buffer buf
-      (read-only-mode -1)
-      (quickrun2--recenter -1)
-      (read-only-mode +1))))
 
 (defun quickrun2--add-remove-files (files)
   (let* ((files (if (listp files) files (list files)))
@@ -388,10 +389,16 @@
   :pattern "\\.go\\'"
   :exec '((lambda (name)
             (if (string-match-p "_test\\.go\\'" name)
-                '(command "test")
-              `(command "run" ,name))))
-  :tempfile nil
-  :command "go")
+                '("go" "test")
+              `("go" "run" ,name))))
+  :tempfile nil)
+
+(quickrun2-define-source rust
+  :major-mode '(rust-mode)
+  :pattern "\\.rs\\'"
+  :output #'quickrun2--exe-output
+  :exec '(("rustc" "-o" output source) (output))
+  :remove '(output))
 
 (provide 'quickrun2)
 ;;; quickrun2.el ends here
