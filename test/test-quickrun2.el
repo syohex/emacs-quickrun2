@@ -51,6 +51,13 @@
            (filled (quickrun2--fill-param :exec lang-source "foo.cpp")))
       (should (equal filled '(("foo" "hello/foo.cpp" "baz" "foo.cpp")))))))
 
+(ert-deftest fill-param-with-function-in-exec ()
+  "Fill :exec param list with function parameter"
+  (with-temp-buffer
+    (let* ((lang-source (list :exec '((lambda (src) (list "lambda" src)))))
+           (filled (quickrun2--fill-param :exec lang-source "foo.cpp")))
+      (should (equal filled '(("lambda" "foo.cpp")))))))
+
 ;; TODO
 ;; - add quickrun test
 ;; - add command test
