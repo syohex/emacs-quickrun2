@@ -23,59 +23,109 @@
 
 (require 'ert)
 (require 'quickrun2)
+(require 'subr-x)
 
-(ert-deftest exec-quickrun2 ()
-  "Exec `quickrun2'"
-  (let ((buf (find-file-noselect "test/file/test.py")))
-    (with-current-buffer buf
-      (quickrun2))
-    ;; quickrun2 is async function
-    (sleep-for 1)
-    (with-current-buffer "*quickrun2*"
-      (let ((str (buffer-substring-no-properties (point-min) (point-max))))
-        (should (string= "hello quickrun2 in python\n" str))))))
+(defmacro with-quickrun-temp-file (code file &rest body)
+  (declare (indent 0) (debug t))
+  `(unwind-protect
+       (progn
+         (with-temp-file ,file
+           (insert ,code))
+         (with-current-buffer (find-file-noselect ,file)
+           (goto-char (point-min))
+           ,@body))
+     (delete-file ,file)))
 
-(ert-deftest quickrun2:add-command ()
-  "Add new command"
-  (quickrun2-add-command "-test"
-                        '((:command . "test foo")
-                          (:description . "test description")))
-  (let ((params (assoc-default "-test" quickrun2--language-alist)))
-    (should params)
-    (let ((command (assoc-default :command params))
-          (desc (assoc-default :description params)))
-      (should (string= command "test foo"))
-      (should (string= desc "test description")))))
+(ert-deftest find-language-from-name ()
+  "Find language information from file name"
+  (let ((lang-source (quickrun2--find-language-source "foo.go")))
+    (should (string= (plist-get lang-source :pattern) "\\.go\\'"))))
 
-(ert-deftest override-configuration ()
-  "Override registerd command"
-  (quickrun2-add-command "c/gcc"
-                         '((:command . "clang")
-                           (:description . "Compile clang"))
-                         :override t)
-  (let* ((params (assoc-default "c/gcc" quickrun2--language-alist))
-         (command (assoc-default :command params)))
-    (should (string= command "clang"))))
+(ert-deftest find-language-from-major-mode ()
+  "Find language information from major-mode"
+  (with-temp-buffer
+    (let* ((major-mode 'perl-mode)
+           (lang-source (quickrun2--find-language-source "_no_match_file_name_")))
+      (should (equal (plist-get lang-source :major-mode) '(perl-mode cperl-mode))))))
 
-(ert-deftest use-tempfile-p ()
-  "Whether use temporary file or not."
-  (quickrun2-add-command "tempfile0" '((:command . "tempfile0") (:tempfile . t)))
-  (let ((use-tempfile (quickrun2--use-tempfile-p "tempfile0")))
-    (should use-tempfile))
+(ert-deftest fill-param ()
+  "Fill language source parameter"
+  (with-temp-buffer
+    (let* ((lang-source (list :exec '(("foo" bar "baz" source)) :bar "apple"))
+           (filled (quickrun2--fill-param :exec lang-source "foo.cpp")))
+      (should (equal filled '(("foo" "apple" "baz" "foo.cpp")))))))
 
-  (quickrun2-add-command "tempfile1" '((:command . "tempfile1") (:tempfile . nil)))
-  (let ((use-tempfile (quickrun2--use-tempfile-p "tempfile1")))
-    (should-not use-tempfile))
+(ert-deftest fill-param-with-function ()
+  "Fill param list with function parameter"
+  (with-temp-buffer
+    (let* ((lang-source (list :exec '(("foo" output "baz" source))
+                              :output (lambda (src) (concat "hello/" src))))
+           (filled (quickrun2--fill-param :exec lang-source "foo.cpp")))
+      (should (equal filled '(("foo" "hello/foo.cpp" "baz" "foo.cpp")))))))
 
-  ;; use temporary file if :tempfile paramter is not specified
-  (quickrun2-add-command "tempfile2" '((:command . "tempfile2")))
-  (let ((use-tempfile (quickrun2--use-tempfile-p "tempfile2")))
-    (should use-tempfile))
+(ert-deftest fill-param-with-function-in-exec ()
+  "Fill :exec param list with function parameter"
+  (with-temp-buffer
+    (let* ((lang-source (list :exec '((lambda (src) (list "lambda" src)))))
+           (filled (quickrun2--fill-param :exec lang-source "foo.cpp")))
+      (should (equal filled '(("lambda" "foo.cpp")))))))
 
-  (let* ((quickrun2--compile-only-flag t)
-         (not-found (catch 'quickrun2
-                      (quickrun2--use-tempfile-p "hoge")
-                      nil)))
-    (should not-found)))
+(ert-deftest add-new-language-source ()
+  "Add new language source"
+  (quickrun2-define-source test-lang
+    :major-mode '(test-lang-mode)
+    :pattern "\\.test-lang\\'"
+    :exec '(("test-lang" "exec" source))
+    :test 'test-lang
+    :command "test-lang")
+  (with-temp-buffer
+    (let* ((major-mode 'test-lang-mode)
+           (source (quickrun2--find-language-source "dummy")))
+      (should (eq (plist-get source :test) 'test-lang)))))
+
+(ert-deftest overwrite-language-source ()
+  "Overwrite language source"
+  (quickrun2-define-source ruby
+    :major-mode '(mruby-mode)
+    :pattern "\\.rb\\'"
+    :exec '(("mruby" source))
+    :command "mruby")
+  (should (= 1 (cl-count-if (lambda (src)
+                              (eq (plist-get src :name) 'ruby))
+                            quickrun2--sources)))
+  (with-temp-buffer
+    (let ((source (quickrun2--find-language-source "test.rb")))
+      (should (string= (plist-get source :command) "mruby")))))
+
+(defun quickrun2--test-buffer-content (expected)
+  (let ((finish nil))
+    (with-current-buffer (get-buffer quickrun2--buffer-name)
+      (while (not finish)
+        (if (string-empty-p (buffer-string))
+            (sleep-for 0 500)
+          (setq finish t)
+          (should (string= (buffer-string) expected)))))))
+
+(ert-deftest quickrun2/one-command ()
+  "Test quickrun command one command"
+  (with-quickrun-temp-file
+    "#!/usr/bin/env python
+print(\"hello python\")"
+    "test-quickrun.py"
+    (quickrun2)
+    (quickrun2--test-buffer-content "hello python\n")))
+
+(ert-deftest quickrun2/multiple-commands ()
+  "Test quickrun command multiple commands"
+  (with-quickrun-temp-file
+    "#include <stdio.h>
+
+int main(void) {
+  printf(\"hello quickrun2 in C\");
+  return 0;
+}"
+    "test-quickrun.c"
+    (quickrun2)
+    (quickrun2--test-buffer-content "hello quickrun2 in C")))
 
 ;;; test-quickrun2.el ends here
