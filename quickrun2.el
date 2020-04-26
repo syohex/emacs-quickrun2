@@ -312,7 +312,12 @@
       (let ((parent (assoc-default inherit quickrun2--base-sources)))
         (setq args (append parent args))))
     (quickrun2--validate-source args)
-    (add-to-list 'quickrun2--sources (list :name name :source args))))
+    (let ((lang-source (cl-loop for source in quickrun2--sources
+                                when (eq (plist-get source :name) name)
+                                return source)))
+      (if lang-source
+          (plist-put lang-source :source args)
+        (add-to-list 'quickrun2--sources (list :name name :source args))))))
 
 (defmacro quickrun2-define-source (name &rest args)
   (declare (indent 1))
