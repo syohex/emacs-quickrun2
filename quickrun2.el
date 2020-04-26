@@ -295,12 +295,25 @@
   (declare (indent 1))
   `(quickrun2--set-base-source ',name ,@args))
 
+(defun quickrun2--validate-source (source)
+  (let ((mode (plist-get source :major-mode))
+        (pattern (plist-get source :pattern))
+        (timeout (plist-get source :timeout)))
+    (when (and pattern (not (stringp pattern)))
+      (user-error "`:pattern' parameter must be string"))
+    (when (and mode (not (or (and (listp mode) (cl-every #'symbolp mode))
+                             (symbolp mode))))
+      (user-error "`:major-mode' parameter must be symbol or symbol list"))
+    (when (and timeout (not (numberp timeout)))
+      (user-error "`:timeout' parameter must be number"))))
+
 (defun quickrun2--set-source (name &rest args)
   (declare (indent 1))
   (let* ((inherit (plist-get args :inherit)))
     (when inherit
       (let ((parent (assoc-default inherit quickrun2--base-sources)))
         (setq args (append parent args))))
+    (quickrun2--validate-source args)
     (add-to-list 'quickrun2--sources (list :name name :source args))))
 
 (defmacro quickrun2-define-source (name &rest args)
