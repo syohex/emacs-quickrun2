@@ -177,11 +177,6 @@
       (quickrun2--recenter -1)
       (read-only-mode +1))))
 
-(defun quickrun2--prompt ()
-  (let ((candidates (cl-loop for source in quickrun2--sources
-                             collect (plist-get source :name))))
-    (intern (completing-read "Quickrun2 Lang: " candidates))))
-
 (defun quickrun2--add-remove-files (files)
   (let* ((files (if (listp files) files (list files)))
          (abs-paths (mapcar #'expand-file-name files)))
@@ -207,14 +202,19 @@
                     (eq mode modes))
            return source))
 
+(defun quickrun2--prompt ()
+  (let* ((candidates (cl-loop for source in quickrun2--sources
+                              collect (plist-get source :name)))
+         (lang (completing-read "Quickrun2 Lang: " candidates nil t)))
+    (cl-loop for source in quickrun2--sources
+             when (string= lang (symbol-name (plist-get source :name)))
+             return (plist-get source :source))))
+
 (defun quickrun2--find-language-source (filename)
-  ;; TODO support current prefix for selecting manual source
-  (or (quickrun2--find-source-from-pattern filename)
+  (or (and current-prefix-arg (quickrun2--prompt))
+      (quickrun2--find-source-from-pattern filename)
       (quickrun2--find-source-from-major-mode major-mode)
-      (let ((key (quickrun2--prompt)))
-        (cl-loop for source in quickrun2--sources
-                 when (string= key (symbol-name (plist-get source :name)))
-                 return source))))
+      (quickrun2--prompt)))
 
 (defun quickrun2--copy-region-to-tempfile (start end dst)
   ;; Suppress write file message
@@ -262,25 +262,27 @@
   (let* ((beg (if (use-region-p) (region-beginning) (point-min)))
          (end (if (use-region-p) (region-end) (point-max)))
          (basename (file-name-nondirectory (buffer-file-name)))
-         (lang-source (quickrun2--find-language-source basename))
          (src (quickrun2--temp-name (or basename "")))
-         (tempfile-param (plist-member lang-source :tempfile))
-         (use-tempfile (if tempfile-param (cadr tempfile-param) t))
-         process-start)
-    (unwind-protect
-        (progn
-          (if use-tempfile
-              (quickrun2--copy-region-to-tempfile beg end src)
-            (setq src basename))
-          (quickrun2--add-remove-files (quickrun2--fill-param :remove lang-source src))
-          (let ((buf (get-buffer-create quickrun2--buffer-name))
-                (commands (quickrun2--fill-param :exec lang-source src))
-                (timeout (or (plist-get lang-source :timeout) quickrun2-timeout-seconds)))
-            (quickrun2--execute commands basename major-mode use-tempfile timeout)
-            (quickrun2--pop-to-buffer buf 'quickrun2--mode)
-            (setq process-start t)))
-      (unless process-start
-        (quickrun2--remove-temp-files)))))
+         (lang-source (quickrun2--find-language-source basename)))
+    (unless lang-source
+      (error "Could not find language source for this file"))
+    (let* ((tempfile-param (plist-member lang-source :tempfile))
+           (use-tempfile (if tempfile-param (cadr tempfile-param) t))
+           process-start)
+      (unwind-protect
+          (progn
+            (if use-tempfile
+                (quickrun2--copy-region-to-tempfile beg end src)
+              (setq src basename))
+            (quickrun2--add-remove-files (quickrun2--fill-param :remove lang-source src))
+            (let ((buf (get-buffer-create quickrun2--buffer-name))
+                  (commands (quickrun2--fill-param :exec lang-source src))
+                  (timeout (or (plist-get lang-source :timeout) quickrun2-timeout-seconds)))
+              (quickrun2--execute commands basename major-mode use-tempfile timeout)
+              (quickrun2--pop-to-buffer buf 'quickrun2--mode)
+              (setq process-start t)))
+        (unless process-start
+          (quickrun2--remove-temp-files))))))
 
 (defun quickrun2--set-base-source (name &rest args)
   (let ((registered (assoc-default name quickrun2--base-sources)))
