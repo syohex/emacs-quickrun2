@@ -21,5 +21,7 @@ jobs:
         version: ${{ matrix.emacs_version }}
 
     - uses: actions/checkout@v1
+    - name: Install dependencies
+      run: sudo apt install gcc python3
     - name: Run tests
       run: 'make test'
