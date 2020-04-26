@@ -24,6 +24,17 @@
 (require 'ert)
 (require 'quickrun2)
 
+(defmacro with-quickrun-temp-file (code file &rest body)
+  (declare (indent 0) (debug t))
+  `(unwind-protect
+       (progn
+         (with-temp-file ,file
+           (insert ,code))
+         (with-current-buffer (find-file-noselect ,file)
+           (goto-char (point-min))
+           ,@body))
+     (delete-file ,file)))
+
 (ert-deftest find-language-from-name ()
   "Find language information from file name"
   (let ((lang-source (quickrun2--find-language-source "foo.go")))
@@ -59,8 +70,35 @@
       (should (equal filled '(("lambda" "foo.cpp")))))))
 
 ;; TODO
-;; - add quickrun test
 ;; - add command test
 ;; - add overwrite command test
+
+(ert-deftest quickrun/one-command ()
+  "Test quickrun command one command"
+  (with-quickrun-temp-file
+    "#!/usr/bin/env python
+print(\"hello python\")"
+    "test-quickrun.py"
+    (quickrun2)
+    ;; quickrun2 is asynchrnous
+    (sleep-for 1)
+    (with-current-buffer (get-buffer quickrun2--buffer-name)
+      (should (string= (buffer-string) "hello python\n")))))
+
+(ert-deftest quickrun/multiple-commands ()
+  "Test quickrun command multiple commands"
+  (with-quickrun-temp-file
+    "#include <stdio.h>
+
+int main(void) {
+  printf(\"hello quickrun2 in C\");
+  return 0;
+}"
+    "test-quickrun.c"
+    (quickrun2)
+    ;; quickrun2 is asynchrnous
+    (sleep-for 1)
+    (with-current-buffer (get-buffer quickrun2--buffer-name)
+      (should (string= (buffer-string) "hello quickrun2 in C")))))
 
 ;;; test-quickrun2.el ends here
