@@ -233,11 +233,11 @@
            (let* ((key (intern (format ":%s" elem)))
                   (replaced (plist-get source key)))
              (unless replaced
-               (throw 'quickrun2 (format "parameter %s is not found in source. %s" elem source)))
+               (error "parameter %s is not found in source. %s" elem source))
              (if (functionp replaced)
                  (funcall replaced file)
                replaced))))
-        (t (throw 'quickrun2 (format "invalid type parameter %s is found in source. %s" elem source)))))
+        (t (error "invalid type parameter %s is found in source. %s" elem source))))
 
 (defun quickrun2--fill-param (prop source file)
   (cl-loop for param in (plist-get source prop)
@@ -251,24 +251,6 @@
            else
            collect (quickrun2--replace-param param source file)))
 
-(defun quickrun2--common (file start end)
-  (let ((basename (file-name-nondirectory file))
-        (lang-source (quickrun2--find-language-source file)))
-    (let* ((src (quickrun2--temp-name (or basename "")))
-           (tempfile-param (plist-member lang-source :tempfile))
-           (use-tempfile (if tempfile-param
-                             (cadr tempfile-param)
-                           t)))
-      (if use-tempfile
-          (quickrun2--copy-region-to-tempfile start end src)
-        (setq src basename))
-      (quickrun2--add-remove-files (quickrun2--fill-param :remove lang-source src))
-      (let ((buf (get-buffer-create quickrun2--buffer-name))
-            (commands (quickrun2--fill-param :exec lang-source src))
-            (timeout (or (plist-get lang-source :timeout) quickrun2-timeout-seconds)))
-        (quickrun2--execute commands basename major-mode use-tempfile timeout)
-        (quickrun2--pop-to-buffer buf 'quickrun2--mode)))))
-
 ;;;###autoload
 (defun quickrun2 ()
   "Run commands quickly for current buffer"
@@ -277,13 +259,27 @@
     (user-error "quickrun2 does not support buffer which is not visited file"))
   (when (get-buffer quickrun2--buffer-name)
     (kill-buffer quickrun2--buffer-name))
-  (let ((beg (point-min))
-        (end (point-max)))
-    (let ((has-error (catch 'quickrun2
-                       (quickrun2--common (buffer-file-name) beg end)
-                       nil)))
-      (when has-error
-        (message "%s" has-error)
+  (let* ((beg (if (use-region-p) (region-beginning) (point-min)))
+         (end (if (use-region-p) (region-end) (point-max)))
+         (basename (file-name-nondirectory (buffer-file-name)))
+         (lang-source (quickrun2--find-language-source basename))
+         (src (quickrun2--temp-name (or basename "")))
+         (tempfile-param (plist-member lang-source :tempfile))
+         (use-tempfile (if tempfile-param (cadr tempfile-param) t))
+         process-start)
+    (unwind-protect
+        (progn
+          (if use-tempfile
+              (quickrun2--copy-region-to-tempfile beg end src)
+            (setq src basename))
+          (quickrun2--add-remove-files (quickrun2--fill-param :remove lang-source src))
+          (let ((buf (get-buffer-create quickrun2--buffer-name))
+                (commands (quickrun2--fill-param :exec lang-source src))
+                (timeout (or (plist-get lang-source :timeout) quickrun2-timeout-seconds)))
+            (quickrun2--execute commands basename major-mode use-tempfile timeout)
+            (quickrun2--pop-to-buffer buf 'quickrun2--mode)
+            (setq process-start t)))
+      (unless process-start
         (quickrun2--remove-temp-files)))))
 
 (defun quickrun2--set-base-source (name &rest args)
