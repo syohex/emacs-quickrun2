@@ -71,8 +71,20 @@
       (should (equal filled '(("lambda" "foo.cpp")))))))
 
 ;; TODO
-;; - add command test
 ;; - add overwrite command test
+
+(ert-deftest add-new-language-source ()
+  "Add new language source"
+  (quickrun2-define-source test-lang
+    :major-mode '(test-lang-mode)
+    :pattern "\\.test-lang\\'"
+    :exec '(("test-lang" "exec" source))
+    :test 'test-lang
+    :command "test-lang")
+  (with-temp-buffer
+    (let* ((major-mode 'test-lang-mode)
+           (source (quickrun2--find-language-source "dummy")))
+      (should (eq (plist-get source :test) 'test-lang)))))
 
 (defun quickrun2--test-buffer-content (expected)
   (let ((finish nil))
