@@ -248,7 +248,11 @@
              (when (functionp param)
                (setq param (funcall param file)))
              (cl-loop for elem in param
-                      collect (quickrun2--replace-param elem source file)))
+                      for replaced = (quickrun2--replace-param elem source file)
+                      if (listp replaced)
+                      append replaced
+                      else
+                      collect replaced))
            else
            collect (quickrun2--replace-param param source file)))
 
@@ -333,6 +337,13 @@
         (exe-ext (if (quickrun2--windows-p) ".exe" ".out")))
     (concat noext exe-ext)))
 
+(defun quickrun2--c-link-option (file)
+  (with-temp-buffer
+    (insert-file-contents file)
+    (goto-char (point-min))
+    (when (re-search-forward "^#\\s-*include\\s-*<\\(?:pthread\\.h\\|thread>\\)"nil t)
+      (list "-lpthread"))))
+
 ;;
 ;; Language Settings
 ;;
@@ -344,8 +355,9 @@
     :major-mode 'c-mode
     :pattern "\\.c\\'"
     :output #'quickrun2--exe-output
-    :exec '((compiler "-x" "c" "-std=gnu99" "-o" output source) (output))
+    :exec '((compiler "-x" "c" "-std=gnu99" "-o" output source link-option) (output))
     :compiler c-compiler
+    :link-option #'quickrun2--c-link-option
     :remove '(output))
 
   (quickrun2-define-source c++
@@ -353,8 +365,9 @@
     :major-mode 'c++-mode
     :pattern "\\.\\(cpp\\|cc\\|cxx\\)\\'"
     :output #'quickrun2--exe-output
-    :exec '((compiler "-x" "c++" "-std=c++17" "-o" output source) (output))
+    :exec '((compiler "-x" "c++" "-std=c++17" "-o" output source link-option) (output))
     :compiler cpp-compiler
+    :link-option #'quickrun2--c-link-option
     :remove '(output)))
 
 (quickrun2-define-base-source interpreter-base
