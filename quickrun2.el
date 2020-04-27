@@ -341,8 +341,12 @@
   (with-temp-buffer
     (insert-file-contents file)
     (goto-char (point-min))
-    (when (re-search-forward "^#\\s-*include\\s-*<\\(?:pthread\\.h\\|thread>\\)"nil t)
-      (list "-lpthread"))))
+    (let (link-flags)
+      (when (re-search-forward "^#\\s-*include\\s-*<\\(?:pthread\\.h\\|thread>\\)"nil t)
+        (push "-lpthread" link-flags))
+      (when (re-search-forward "^#\\s-*include\\s-*<\\(?:math\\.h\\|cmath>\\)"nil t)
+        (push "-lm" link-flags))
+      link-flags)))
 
 ;;
 ;; Language Settings
