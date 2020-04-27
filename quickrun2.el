@@ -70,7 +70,7 @@
     (unless quickrun2-focus-p
       (select-window win))))
 
-(defun quickrun2--default-filter (proc output)
+(defun quickrun2--colorize-filter (proc output)
   (with-current-buffer (process-buffer proc)
     (read-only-mode -1)
     (goto-char (point-max))
@@ -104,12 +104,14 @@
   (with-selected-window (get-buffer-window quickrun2--buffer-name)
     (recenter arg)))
 
-(defun quickrun2--set-output-buffer ()
+(defun quickrun2--set-output-buffer (after-fn)
   (let ((buf (get-buffer quickrun2--buffer-name)))
     (with-current-buffer buf
       (goto-char (point-min))
       (read-only-mode -1)
       (quickrun2--recenter -1)
+      (when after-fn
+        (funcall after-fn))
       (read-only-mode +1))))
 
 (defun quickrun2--set-error-buffer (orig-file orig-mode use-tempfile)
@@ -129,12 +131,12 @@
     (goto-char (point-min))
     (read-only-mode +1)))
 
-(defun quickrun2--execute (commands orig-name orig-mode use-tempfile timeout)
+(defun quickrun2--execute (commands orig-name orig-mode use-tempfile timeout after-fn)
   (ignore-errors
     (let* ((next-command  (car commands))
            (rest-commands (cdr commands))
            (process (quickrun2--start-process next-command timeout)))
-      (set-process-filter process #'quickrun2--default-filter)
+      (set-process-filter process #'quickrun2--colorize-filter)
       (set-process-sentinel
        process
        (lambda (proc _event)
@@ -145,9 +147,10 @@
            (let* ((exit-status (process-exit-status proc))
                   (succeeded (zerop exit-status)))
              (if (and succeeded (not (null rest-commands)))
-                 (quickrun2--execute rest-commands orig-name orig-mode use-tempfile timeout)
+                 (quickrun2--execute
+                  rest-commands orig-name orig-mode use-tempfile timeout after-fn)
                (if succeeded
-                   (quickrun2--set-output-buffer)
+                   (quickrun2--set-output-buffer after-fn)
                  (quickrun2--set-error-buffer orig-name orig-mode use-tempfile))
                (cond ((> scroll-conservatively 0) (quickrun2--recenter nil))
                      ((/= scroll-step 0) (quickrun2--recenter -1)))
@@ -282,8 +285,9 @@
             (quickrun2--add-remove-files (quickrun2--fill-param :remove lang-source src))
             (let ((buf (get-buffer-create quickrun2--buffer-name))
                   (commands (quickrun2--fill-param :exec lang-source src))
-                  (timeout (or (plist-get lang-source :timeout) quickrun2-timeout-seconds)))
-              (quickrun2--execute commands basename major-mode use-tempfile timeout)
+                  (timeout (or (plist-get lang-source :timeout) quickrun2-timeout-seconds))
+                  (after-fn (plist-get lang-source :after)))
+              (quickrun2--execute commands basename major-mode use-tempfile timeout after-fn)
               (quickrun2--pop-to-buffer buf 'quickrun2--mode)
               (setq process-start t)))
         (unless process-start
