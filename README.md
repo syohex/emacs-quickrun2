@@ -38,7 +38,9 @@ if you use `C-u` prefix key)
 If this value is `nil`, quickrun2.el does not move focus to output buffer.
 
 
-## Add language source
+## language source
+
+### Example
 
 ```lisp
 (quickrun2-define-source typescript
@@ -48,6 +50,42 @@ If this value is `nil`, quickrun2.el does not move focus to output buffer.
   :command "ts-node")
 ```
 
+### Properties
+
+```lisp
+(quickrun2-define-source example
+  :major-mode 'example-mode
+  :pattern "\\.exam\\'"
+  :output #'quickrun2--exe-output
+  :exec '((compiler "-x" "c" "-std=gnu99" "-o" output source link-option) (output))
+  :compiler c-compiler
+  :link-option #'quickrun2--c-link-option
+  :remove '(output))
+```
+
+#### `:major-mode` (symbol or symbol list, required)
+
+This source is used if current major-mode equals to this value
+
+#### `:pattern` (string, required)
+
+This source is used if current file name is matched against this pattern.
+
+#### `:exec` (list of list required)
+
+Commands executed
+
+#### `:remove` (list optional)
+
+remove files. You should set if intermediage files are generated
+
+#### `:inherit` (symbol optional)
+
+Inherit base class. You can define base class by `quickrun2-define-base-source`
+
+#### other parameters(symbol or string or function)
+
+You can add any paramters
 
 ## Key bindings in quickrun2 buffer
 
