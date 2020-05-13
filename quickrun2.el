@@ -134,10 +134,13 @@
     (read-only-mode +1)))
 
 (defun quickrun2--execute (commands orig-name orig-mode use-tempfile timeout after-fn)
-  (ignore-errors
-    (let* ((next-command  (car commands))
-           (rest-commands (cdr commands))
-           (process (quickrun2--start-process next-command timeout)))
+  (let* ((next-command  (car commands))
+         (rest-commands (cdr commands))
+         (process (quickrun2--start-process next-command timeout)))
+    (if (not process)
+        (progn
+          (message "Failed to execute '%s'" next-command)
+          (quickrun2--remove-temp-files))
       (set-process-filter process #'quickrun2--colorize-filter)
       (set-process-sentinel
        process
@@ -392,8 +395,7 @@
 (quickrun2-define-source perl
   :inherit 'interpreter-base
   :major-mode '(perl-mode cperl-mode)
-  :pattern "\\.\\(pl\\|pm\\)\\'"
-  :command "perl")
+  :pattern "\\.\\(?:pl\\|pm\\)\\'")
 
 (quickrun2-define-source python
   :inherit 'interpreter-base
@@ -402,10 +404,9 @@
   :command (if (executable-find "python3") "python3" "python"))
 
 (quickrun2-define-source ruby
-  :inherit "interpreter-base"
+  :inherit 'interpreter-base
   :major-mode '(ruby-mode)
-  :pattern "\\.rb\\'"
-  :command "ruby")
+  :pattern "\\.rb\\'")
 
 (quickrun2-define-source javascript
   :inherit 'interpreter-base
@@ -428,6 +429,16 @@
   :output #'quickrun2--exe-output
   :exec '(("rustc" "-o" output source) (output))
   :remove '(output))
+
+(quickrun2-define-source lua
+  :inherit 'interpreter-base
+  :major-mode '(lua-mode)
+  :pattern "\\.lua\\'")
+
+(quickrun2-define-source julia
+  :inherit 'interpreter-base
+  :major-mode '(julia-mode)
+  :pattern "\\.jl\\'")
 
 (provide 'quickrun2)
 ;;; quickrun2.el ends here
