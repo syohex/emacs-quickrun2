@@ -302,25 +302,31 @@
   (declare (indent 1))
   `(quickrun2--set-base-source ',name ,@args))
 
-(defun quickrun2--validate-source (source)
+(defun quickrun2--validate-source (name source)
   (let ((mode (plist-get source :major-mode))
         (pattern (plist-get source :pattern))
-        (timeout (plist-get source :timeout)))
+        (timeout (plist-get source :timeout))
+        (exec (plist-get source :exec)))
+    (unless exec
+      (user-error "[%s] missing `:exec' parameter" name))
     (when (and pattern (not (stringp pattern)))
-      (user-error "`:pattern' parameter must be string"))
+      (user-error "[%s] `:pattern' parameter must be string" name))
     (when (and mode (not (or (and (listp mode) (cl-every #'symbolp mode))
                              (symbolp mode))))
-      (user-error "`:major-mode' parameter must be symbol or symbol list"))
+      (user-error "[%s] `:major-mode' parameter must be symbol or symbol list" name))
     (when (and timeout (not (numberp timeout)))
-      (user-error "`:timeout' parameter must be number"))))
+      (user-error "[%s] `:timeout' parameter must be number" name))))
 
 (defun quickrun2--set-source (name &rest args)
   (declare (indent 1))
-  (let* ((inherit (plist-get args :inherit)))
+  (let* ((inherit (plist-get args :inherit))
+         (command (plist-get args :command)))
     (when inherit
       (let ((parent (assoc-default inherit quickrun2--base-sources)))
         (setq args (append parent args))))
-    (quickrun2--validate-source args)
+    (unless command
+      (plist-put args :command (symbol-name name)))
+    (quickrun2--validate-source name args)
     (let ((lang-source (cl-loop for source in quickrun2--sources
                                 when (eq (plist-get source :name) name)
                                 return source)))
