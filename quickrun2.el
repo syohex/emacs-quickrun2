@@ -93,8 +93,10 @@
     (with-current-buffer buf
       (read-only-mode -1)
       (erase-buffer))
-    (let ((proc (apply #'start-file-process (concat "quickrun2-proc-" (car cmd)) buf cmd)))
-      (when (>= timeout 0)
+    (let ((proc (condition-case nil
+                    (apply #'start-file-process (concat "quickrun2-proc-" (car cmd)) buf cmd)
+                  (error nil))))
+      (when (and proc (>= timeout 0))
         (setq quickrun2--timeout-timer
               (run-at-time quickrun2-timeout-seconds nil
                            #'quickrun2--kill-process proc timeout)))
