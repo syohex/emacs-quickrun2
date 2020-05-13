@@ -93,8 +93,10 @@
     (with-current-buffer buf
       (read-only-mode -1)
       (erase-buffer))
-    (let ((proc (apply #'start-file-process (concat "quickrun2-proc-" (car cmd)) buf cmd)))
-      (when (>= timeout 0)
+    (let ((proc (condition-case nil
+                    (apply #'start-file-process (concat "quickrun2-proc-" (car cmd)) buf cmd)
+                  (error nil))))
+      (when (and proc (>= timeout 0))
         (setq quickrun2--timeout-timer
               (run-at-time quickrun2-timeout-seconds nil
                            #'quickrun2--kill-process proc timeout)))
@@ -132,10 +134,13 @@
     (read-only-mode +1)))
 
 (defun quickrun2--execute (commands orig-name orig-mode use-tempfile timeout after-fn)
-  (ignore-errors
-    (let* ((next-command  (car commands))
-           (rest-commands (cdr commands))
-           (process (quickrun2--start-process next-command timeout)))
+  (let* ((next-command  (car commands))
+         (rest-commands (cdr commands))
+         (process (quickrun2--start-process next-command timeout)))
+    (if (not process)
+        (progn
+          (message "Failed to execute '%s'" next-command)
+          (quickrun2--remove-temp-files))
       (set-process-filter process #'quickrun2--colorize-filter)
       (set-process-sentinel
        process
@@ -302,25 +307,31 @@
   (declare (indent 1))
   `(quickrun2--set-base-source ',name ,@args))
 
-(defun quickrun2--validate-source (source)
+(defun quickrun2--validate-source (name source)
   (let ((mode (plist-get source :major-mode))
         (pattern (plist-get source :pattern))
-        (timeout (plist-get source :timeout)))
+        (timeout (plist-get source :timeout))
+        (exec (plist-get source :exec)))
+    (unless exec
+      (user-error "[%s] missing `:exec' parameter" name))
     (when (and pattern (not (stringp pattern)))
-      (user-error "`:pattern' parameter must be string"))
+      (user-error "[%s] `:pattern' parameter must be string" name))
     (when (and mode (not (or (and (listp mode) (cl-every #'symbolp mode))
                              (symbolp mode))))
-      (user-error "`:major-mode' parameter must be symbol or symbol list"))
+      (user-error "[%s] `:major-mode' parameter must be symbol or symbol list" name))
     (when (and timeout (not (numberp timeout)))
-      (user-error "`:timeout' parameter must be number"))))
+      (user-error "[%s] `:timeout' parameter must be number" name))))
 
 (defun quickrun2--set-source (name &rest args)
   (declare (indent 1))
-  (let* ((inherit (plist-get args :inherit)))
+  (let* ((inherit (plist-get args :inherit))
+         (command (plist-get args :command)))
     (when inherit
       (let ((parent (assoc-default inherit quickrun2--base-sources)))
         (setq args (append parent args))))
-    (quickrun2--validate-source args)
+    (unless command
+      (plist-put args :command (symbol-name name)))
+    (quickrun2--validate-source name args)
     (let ((lang-source (cl-loop for source in quickrun2--sources
                                 when (eq (plist-get source :name) name)
                                 return source)))
@@ -384,8 +395,7 @@
 (quickrun2-define-source perl
   :inherit 'interpreter-base
   :major-mode '(perl-mode cperl-mode)
-  :pattern "\\.\\(pl\\|pm\\)\\'"
-  :command "perl")
+  :pattern "\\.\\(?:pl\\|pm\\)\\'")
 
 (quickrun2-define-source python
   :inherit 'interpreter-base
@@ -394,10 +404,9 @@
   :command (if (executable-find "python3") "python3" "python"))
 
 (quickrun2-define-source ruby
-  :inherit "interpreter-base"
+  :inherit 'interpreter-base
   :major-mode '(ruby-mode)
-  :pattern "\\.rb\\'"
-  :command "ruby")
+  :pattern "\\.rb\\'")
 
 (quickrun2-define-source javascript
   :inherit 'interpreter-base
@@ -420,6 +429,16 @@
   :output #'quickrun2--exe-output
   :exec '(("rustc" "-o" output source) (output))
   :remove '(output))
+
+(quickrun2-define-source lua
+  :inherit 'interpreter-base
+  :major-mode '(lua-mode)
+  :pattern "\\.lua\\'")
+
+(quickrun2-define-source julia
+  :inherit 'interpreter-base
+  :major-mode '(julia-mode)
+  :pattern "\\.jl\\'")
 
 (provide 'quickrun2)
 ;;; quickrun2.el ends here
