@@ -292,6 +292,8 @@
                   (commands (quickrun2--fill-param :exec lang-source src))
                   (timeout (or (plist-get lang-source :timeout) quickrun2-timeout-seconds))
                   (after-fn (plist-get lang-source :after)))
+              (unless (listp (car commands))
+                (setq commands (list commands)))
               (quickrun2--execute commands basename major-mode use-tempfile timeout after-fn)
               (quickrun2--pop-to-buffer buf 'quickrun2--mode)
               (setq process-start t)))
@@ -390,7 +392,7 @@
     :remove '(output)))
 
 (quickrun2-define-base-source interpreter-base
-  :exec '((command source)))
+  :exec '(command source))
 
 (quickrun2-define-source perl
   :inherit 'interpreter-base
@@ -414,13 +416,22 @@
   :pattern "\\.js\\'"
   :command "node")
 
+(let ((has-deno (executable-find "deno")))
+  (quickrun2-define-source typescript
+    :major-mode '(typescript-mode)
+    :exec (if has-deno
+              '("deno" "run" "--allow-all" source)
+            '(command source))
+    :pattern "\\.tsx?\\'"
+    :command (if has-deno "deno" "ts-node")))
+
 (quickrun2-define-source go
   :major-mode '(go-mode)
   :pattern "\\.go\\'"
   :exec '((lambda (name)
             (if (string-match-p "_test\\.go\\'" name)
                 '("go" "test")
-              `("go" "run" ,name))))
+              (list "go" "run" name))))
   :tempfile nil)
 
 (quickrun2-define-source rust
