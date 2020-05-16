@@ -6,28 +6,29 @@
 
 
 `quickrun2.el` is a extension to execute editing buffer.
-`quickrun2.el` is similar to executable-interpret, but `quickrun2.el` provides more convenient
-commands. `quickrun2.el` execute not only script languages(Perl, Ruby, Python etc), but also
-compiling languages(C, C++, Go, Java etc) and markup language.
+`quickrun2.el` is similar to emacs builtin `executable-interpret`. However `quickrun2.el`
+runs any programs compiling languages, script languages, markup languages etc.
 
 
 ## Default supported languages
 
-* C
-* C++
-* Perl
-* Ruby
-* Python
-* node.js
-* Go Language
-* Rust
+- C
+- C++
+- Perl
+- Ruby
+- Python
+- node.js
+- TypeScript
+- Go Language
+- Rust
+- Julia
 
 
 ## Basic Usage
 
 #### `quickrun2`
 
-Execute current file. If `quickrun2.el` does not find langauge source,
+Execute current file. If `quickrun2.el` does not find language source,
 then `quickrun2.el` asks you command-key(You always input command
 if you use `C-u` prefix key)
 
@@ -77,7 +78,7 @@ Commands executed
 
 #### `:remove` (list optional)
 
-remove files. You should set if intermediage files are generated
+remove files. You should set if intermediate files are generated
 
 #### `:inherit` (symbol optional)
 
@@ -85,7 +86,7 @@ Inherit base class. You can define base class by `quickrun2-define-base-source`
 
 #### other parameters(symbol or string or function)
 
-You can add any paramters
+You can add any parameters
 
 ## Key bindings in quickrun2 buffer
 

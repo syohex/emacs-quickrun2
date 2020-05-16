@@ -46,7 +46,7 @@
   :prefix 'quickrun2)
 
 (defcustom quickrun2-timeout-seconds 10
-  "Timeout seconds for running too long process"
+  "Default timeout seconds for running too long process"
   :type 'integer)
 
 (defcustom quickrun2-focus-p t
@@ -59,9 +59,6 @@
 (defvar quickrun2--base-sources nil)
 (defvar quickrun2--sources nil)
 (defvar quickrun2--timeout-timer nil)
-
-(defsubst quickrun2--windows-p ()
-  (memq system-type '(ms-dos windows-nt cygwin)))
 
 (defun quickrun2--pop-to-buffer (buf cb)
   (let ((win (selected-window)))
@@ -207,7 +204,7 @@
   (cl-loop for lang-source in quickrun2--sources
            for source = (plist-get lang-source :source)
            for modes = (plist-get source :major-mode)
-           when (or (and (listp modes) (memq mode modes))
+           when (or (and (consp modes) (memq mode modes))
                     (eq mode modes))
            return source))
 
@@ -250,7 +247,7 @@
 
 (defun quickrun2--fill-param (prop source file)
   (cl-loop for param in (plist-get source prop)
-           if (and (listp param) (not (null param))) ;; :exec param
+           if (consp param) ;; :exec param
            collect
            (progn
              (when (functionp param)
@@ -287,12 +284,14 @@
             (if use-tempfile
                 (quickrun2--copy-region-to-tempfile beg end src)
               (setq src basename))
-            (quickrun2--add-remove-files (quickrun2--fill-param :remove lang-source src))
+            (let ((files-removed (quickrun2--fill-param :remove lang-source src)))
+              (when files-removed
+                (quickrun2--add-remove-files files-removed)))
             (let ((buf (get-buffer-create quickrun2--buffer-name))
                   (commands (quickrun2--fill-param :exec lang-source src))
                   (timeout (or (plist-get lang-source :timeout) quickrun2-timeout-seconds))
                   (after-fn (plist-get lang-source :after)))
-              (unless (listp (car commands))
+              (unless (consp (car commands))
                 (setq commands (list commands)))
               (quickrun2--execute commands basename major-mode use-tempfile timeout after-fn)
               (quickrun2--pop-to-buffer buf 'quickrun2--mode)
@@ -318,7 +317,7 @@
       (user-error "[%s] missing `:exec' parameter" name))
     (when (and pattern (not (stringp pattern)))
       (user-error "[%s] `:pattern' parameter must be string" name))
-    (when (and mode (not (or (and (listp mode) (cl-every #'symbolp mode))
+    (when (and mode (not (or (and (consp mode) (cl-every #'symbolp mode))
                              (symbolp mode))))
       (user-error "[%s] `:major-mode' parameter must be symbol or symbol list" name))
     (when (and timeout (not (numberp timeout)))
@@ -348,6 +347,9 @@
 ;;
 ;; Language setting helpers
 ;;
+
+(defun quickrun2--windows-p ()
+  (memq system-type '(ms-dos windows-nt cygwin)))
 
 (defun quickrun2--exe-output (filename)
   (let ((noext (file-name-sans-extension filename))
@@ -384,7 +386,7 @@
   (quickrun2-define-source c++
     :inherit 'c++-base
     :major-mode 'c++-mode
-    :pattern "\\.\\(cpp\\|cc\\|cxx\\)\\'"
+    :pattern "\\.\\(?:cpp\\|cc\\|cxx\\)\\'"
     :output #'quickrun2--exe-output
     :exec '((compiler "-x" "c++" "-std=c++17" "-o" output source link-option) (output))
     :compiler cpp-compiler
@@ -413,7 +415,7 @@
 (quickrun2-define-source javascript
   :inherit 'interpreter-base
   :major-mode '(js-mode js2-mode)
-  :pattern "\\.js\\'"
+  :pattern "\\.jsx?\\'"
   :command "node")
 
 (let ((has-deno (executable-find "deno")))
